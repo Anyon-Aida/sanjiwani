@@ -23,8 +23,23 @@ const CACHE_KEY = "reviews:google";
 const FIELD_MASK = "rating,userRatingCount,reviews,googleMapsUri";
 
 export async function GET(req: Request) {
-  // Csak Vercel Cron hívhatja prod-ban (dev-ben kézzel is mehet)
+  const u = new URL(req.url);
+  const provided = u.searchParams.get("secret") ?? "";
+  const needed = process.env.CRON_SECRET ?? "";
   const isCron = req.headers.get("x-vercel-cron") === "1";
+
+  if (!isCron && provided !== needed) {
+    // >>> ideiglenes diagnosztika, hogy lásd miért 403
+    return NextResponse.json(
+      { ok: false, reason: "FORBIDDEN", diag: {
+          provided,
+          needStartsWith: needed ? needed.slice(0, 4) + "…" : null,
+          isCron
+        }},
+      { status: 403 }
+    );
+  }
+  // Csak Vercel Cron hívhatja prod-ban (dev-ben kézzel is mehet)
   const isDev = process.env.NODE_ENV !== "production";
   if (!isCron && !isDev) {
     return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
