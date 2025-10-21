@@ -1,5 +1,6 @@
 ﻿// src/components/Reviews.tsx
 import Image from "next/image";
+import { redis } from "@/lib/redis";
 
 type ReviewItem = {
   author_name: string;
@@ -8,7 +9,6 @@ type ReviewItem = {
   text: string;
   profile_photo_url?: string | null;
 };
-
 type ReviewsPayload = {
   lastUpdated: string;
   rating: number | null;
@@ -17,15 +17,13 @@ type ReviewsPayload = {
   reviews: ReviewItem[];
 };
 
-async function getData(): Promise<ReviewsPayload | null> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/reviews`, {
-    // revalidate = 30 perc – nyugodtan állítsd
-    next: { revalidate: 1800 },
-  });
+export const revalidate = 1800;          // 30 perc cache
+export const dynamic = "force-dynamic";  // ne próbálja statikusan legyártani
 
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json?.data ?? null;
+async function getData(): Promise<ReviewsPayload | null> {
+  const raw = await redis.get("reviews:google");
+  if (!raw) return null;
+  return typeof raw === "string" ? JSON.parse(raw) : (raw as ReviewsPayload);
 }
 
 export default async function Reviews() {
