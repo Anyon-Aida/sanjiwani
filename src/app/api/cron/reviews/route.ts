@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+// src/app/api/cron/reviews/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 
 type PlaceText = { text?: string };
@@ -22,29 +23,86 @@ type GoogleError = {
 const CACHE_KEY = "reviews:google";
 const FIELD_MASK = "rating,userRatingCount,reviews,googleMapsUri";
 
-export async function GET(req: Request) {
-  const u = new URL(req.url);
-  const providedRaw = u.searchParams.get("secret") ?? "";
-  const provided = decodeURIComponent(providedRaw).trim();
-  const needed = (process.env.CRON_SECRET ?? "").trim();
+// futtassuk edge-en, és mindig dinamikusan
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
+
+/** Headerből vagy queryből kiolvassuk a titkot. */
+function getProvidedSecret(req: NextRequest) {
+  // 1) header (cronoknál ez a természetes)
+  const fromHeader =
+    req.headers.get("x-cron-secret") ?? req.headers.get("X-Cron-Secret");
+  if (fromHeader && fromHeader.trim().length > 0) return fromHeader.trim();
+
+  // 2) query param (?secret=...)
+  const fromQuery = req.nextUrl.searchParams.get("secret");
+  return (fromQuery ?? "").trim();
+}
+
+export async function GET(req: NextRequest) {
   const isCron = req.headers.get("x-vercel-cron") === "1";
-
-  if (!isCron && provided !== needed) {
-    return NextResponse.json(
-      { ok: false, reason: "FORBIDDEN", diag: { provided, needStartsWith: needed ? needed.slice(0,4) + "…" : null, isCron } },
-      { status: 403 }
-    );
-  }
-  // Csak Vercel Cron hívhatja prod-ban (dev-ben kézzel is mehet)
+  const provided = getProvidedSecret(req);
+  const needed = (process.env.CRON_SECRET ?? "").trim();
   const isDev = process.env.NODE_ENV !== "production";
-  if (!isCron && !isDev) {
-    return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
+
+  // DEBUG – ideiglenes visszajelzés (böngészőben: ?debug=1)
+  if (req.nextUrl.searchParams.get("debug") === "1") {
+    return NextResponse.json({
+      ok: true,
+      debug: true,
+      provided,
+      needStartsWith: needed ? needed.slice(0, 4) + "…" : null,
+      isCron,
+      headersEcho: {
+        "x-cron-secret": req.headers.get("x-cron-secret"),
+        "x-vercel-cron": req.headers.get("x-vercel-cron"),
+      },
+    });
   }
 
+  // Guard: prod-ban csak Vercel Cron vagy helyes secret engedett.
+  // Dev-ben kézzel is hívható.
+  if (!isDev) {
+    if (!isCron && (!provided || (needed && provided !== needed))) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "FORBIDDEN",
+          diag: {
+            provided,
+            needStartsWith: needed ? needed.slice(0, 4) + "…" : null,
+            isCron,
+          },
+        },
+        { status: 403 }
+      );
+    }
+  } else {
+    // dev: ha van CRON_SECRET megadva, és adsz is titkot, ellenőrizzük
+    if (provided && needed && provided !== needed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "FORBIDDEN_DEV",
+          diag: {
+            provided,
+            needStartsWith: needed ? needed.slice(0, 4) + "…" : null,
+            isCron,
+          },
+        },
+        { status: 403 }
+      );
+    }
+  }
+
+  // --- Google Places v1 lekérés ---
   const key = process.env.GOOGLE_PLACES_API_KEY;
   const placeId = process.env.GOOGLE_PLACE_ID;
   if (!key || !placeId) {
-    return NextResponse.json({ ok: false, error: "MISSING_ENV" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "MISSING_ENV" },
+      { status: 500 }
+    );
   }
 
   const url = new URL(`https://places.googleapis.com/v1/places/${placeId}`);
@@ -63,7 +121,12 @@ export async function GET(req: Request) {
 
   if (!res.ok) {
     return NextResponse.json(
-      { ok: false, error: "PLACES_V1_ERROR", message: json?.error?.message, raw: json },
+      {
+        ok: false,
+        error: "PLACES_V1_ERROR",
+        message: json?.error?.message,
+        raw: json,
+      },
       { status: 500 }
     );
   }
@@ -86,9 +149,10 @@ export async function GET(req: Request) {
     reviews,
   };
 
-  // mentsük Redis-be (stringként)
+  // Mentés Upstash Redis-be
   await redis.set(CACHE_KEY, JSON.stringify(payload));
-  // (opció: TTL, pl. 3 nap)  await redis.set(CACHE_KEY, JSON.stringify(payload), { ex: 60*60*24*3 });
+  // ha szeretnél TTL-t:
+  // await redis.set(CACHE_KEY, JSON.stringify(payload), { ex: 60 * 60 * 24 * 3 });
 
   return NextResponse.json({ ok: true, saved: CACHE_KEY, count: reviews.length });
 }
