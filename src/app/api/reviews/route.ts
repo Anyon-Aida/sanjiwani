@@ -3,6 +3,27 @@ import { NextResponse } from "next/server";
 
 export const revalidate = 6 * 60 * 60; // 6 óra
 
+// --- Google Places v1 response típusok (szűkített) ---
+type PlaceText = { text?: string; languageCode?: string };
+type PlaceAuthorAttr = { displayName?: string; photoUri?: string; uri?: string };
+type PlaceReview = {
+  authorAttribution?: PlaceAuthorAttr;
+  rating?: number;
+  publishTime?: string; // ISO
+  text?: PlaceText;
+};
+
+type PlaceDetails = {
+  rating?: number;
+  userRatingCount?: number;
+  googleMapsUri?: string;
+  reviews?: PlaceReview[];
+};
+
+type GoogleError = {
+  error?: { message?: string; status?: string; code?: number };
+};
+
 export async function GET() {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   const placeId = process.env.GOOGLE_PLACE_ID;
@@ -13,7 +34,6 @@ export async function GET() {
     );
   }
 
-  // v1 GetPlace – NINCS reviewsSort param
   const url = new URL(`https://places.googleapis.com/v1/places/${placeId}`);
   url.searchParams.set("languageCode", "hu");
   url.searchParams.set("regionCode", "HU");
@@ -23,42 +43,45 @@ export async function GET() {
       method: "GET",
       headers: {
         "X-Goog-Api-Key": key,
-        // A v1-ben kötelező a FieldMask: csak ezeket a mezőket adja vissza
         "X-Goog-FieldMask": "rating,userRatingCount,reviews,googleMapsUri",
       },
       next: { revalidate },
-      // debughoz: cache: "no-store",
     });
 
-    const data = await res.json();
+    const json = (await res.json()) as PlaceDetails & GoogleError;
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: "PLACES_V1_ERROR", message: data?.error?.message, raw: data },
+        { error: "PLACES_V1_ERROR", message: json?.error?.message, raw: json },
         { status: 500 }
       );
     }
 
-    // review-k normalizálása + opcionális rendezés publishTime szerint (legújabb elöl)
-    const reviews = (data.reviews ?? [])
-      .map((r: any) => ({
+    const reviews = (json.reviews ?? [])
+      .map((r): {
+        author_name: string;
+        rating: number | undefined;
+        publishTime: string | undefined;
+        text: string;
+        profile_photo_url?: string;
+      } => ({
         author_name: r.authorAttribution?.displayName ?? "Vendég",
         rating: r.rating,
-        publishTime: r.publishTime, // ISO
+        publishTime: r.publishTime,
         text: r.text?.text ?? "",
         profile_photo_url: r.authorAttribution?.photoUri,
       }))
-      .sort((a: any, b: any) => (b.publishTime ?? "").localeCompare(a.publishTime ?? ""));
+      .sort((a, b) => (b.publishTime ?? "").localeCompare(a.publishTime ?? ""));
 
     return NextResponse.json({
-      rating: data.rating,
-      count: data.userRatingCount,
-      mapsUrl: data.googleMapsUri,
+      rating: json.rating,
+      count: json.userRatingCount,
+      mapsUrl: json.googleMapsUri,
       reviews,
     });
-  } catch (e: any) {
+  } catch (e) {
     return NextResponse.json(
-      { error: "FETCH_ERROR", message: String(e) },
+      { error: "FETCH_ERROR", message: e instanceof Error ? e.message : String(e) },
       { status: 500 }
     );
   }
