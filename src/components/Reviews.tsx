@@ -1,124 +1,117 @@
-﻿"use client";
-
-import { useEffect, useState } from "react";
+﻿// src/components/Reviews.tsx
 import Image from "next/image";
 
-type Review = {
+type ReviewItem = {
   author_name: string;
-  rating: number;
-  relative_time_description: string;
+  rating: number | null;
+  publishTime: string | null;
   text: string;
-  profile_photo_url?: string;
+  profile_photo_url?: string | null;
 };
 
-type Payload = {
-  rating?: number;
-  count?: number;
-  reviews: Review[];
+type ReviewsPayload = {
+  lastUpdated: string;
+  rating: number | null;
+  count: number;
+  mapsUrl: string | null;
+  reviews: ReviewItem[];
 };
 
-export default function Reviews() {
-  const [data, setData] = useState<Payload | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+async function getData(): Promise<ReviewsPayload | null> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/reviews`, {
+    // revalidate = 30 perc – nyugodtan állítsd
+    next: { revalidate: 1800 },
+  });
 
-  useEffect(() => {
-    fetch("/api/reviews/static")
-      .then((r) => r.json())
-      .then(setData)
-      .catch((e) => setErr(String(e)));
-  }, []);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json?.data ?? null;
+}
+
+export default async function Reviews() {
+  const data = await getData();
+
+  if (!data) {
+    return (
+      <section id="reviews" className="container-narrow py-12">
+        <h2 className="text-3xl font-bold mb-2">Vélemények</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Valós visszajelzések vendégeinktől
+        </p>
+        <div className="rounded-xl border bg-[var(--color-bg)] p-4">
+          Nem sikerült betölteni a véleményeket. Próbáld később újra.
+        </div>
+      </section>
+    );
+  }
+
+  const { reviews, rating, count, mapsUrl } = data;
 
   return (
-    <section id="reviews" className="py-12 md:py-16">
-      <div className="mx-auto px-6" style={{ maxWidth: "1120px" }}>
-        <div className="flex items-end justify-between gap-6 flex-wrap">
-          <h2 className="font-heading text-[36px] md:text-[32px] leading-tight">Vélemények</h2>
-          <div className="text-[var(--color-muted)]">
+    <section id="reviews" className="container-narrow py-12">
+      <div className="flex items-end justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-3xl font-bold leading-tight">Vélemények</h2>
+          <p className="text-sm text-muted-foreground">
             Valós visszajelzések vendégeinktől
-          </div>
+          </p>
         </div>
-
-        {/* fej összesítés */}
-        {data?.rating && data?.count ? (
-          <div className="mt-3 text-[15px]">
-            <Stars value={data.rating} />
-            <span className="ml-2 align-middle">
-              {data.rating.toFixed(1)} / 5 • {data.count} értékelés a Google-ön
-            </span>
-          </div>
-        ) : null}
-
-        {/* hiba / töltő */}
-        {err && (
-          <div className="mt-6 rounded-lg border p-4 text-sm"
-               style={{ borderColor: "var(--color-line)" }}>
-            Nem sikerült betölteni a véleményeket. Később próbáld újra.
+        {rating != null && (
+          <div className="text-right">
+            <div className="text-2xl font-bold">{rating.toFixed(1)} ★</div>
+            <div className="text-xs text-muted-foreground">{count} értékelés</div>
           </div>
         )}
-        {!data && !err && (
-          <div className="mt-6 h-[140px] rounded-lg border bg-[var(--color-bg)] animate-pulse"
-               style={{ borderColor: "var(--color-line)" }} />
-        )}
+      </div>
 
-        {/* kártyák */}
-        {data?.reviews?.length ? (
-          <div className="mt-6 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {data.reviews.map((r, i) => (
-              <article key={i}
-                className="bg-white border rounded-xl shadow-spa p-5 flex flex-col"
-                style={{ borderColor: "var(--color-line)" }}>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full overflow-hidden bg-[var(--color-bg)] shrink-0">
-                    {r.profile_photo_url ? (
-                      <Image src={r.profile_photo_url} alt={r.author_name} width={36} height={36} />
-                    ) : null}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {reviews.slice(0, 6).map((r, i) => (
+          <article key={i} className="rounded-xl border p-4 bg-white">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-9 w-9 rounded-full overflow-hidden bg-[var(--color-bg)] shrink-0">
+                {r.profile_photo_url ? (
+                  <Image
+                    src={r.profile_photo_url}
+                    alt={r.author_name}
+                    width={36}
+                    height={36}
+                  />
+                ) : null}
+              </div>
+              <div className="leading-tight">
+                <div className="font-medium">{r.author_name}</div>
+                {r.publishTime && (
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(r.publishTime).toLocaleDateString("hu-HU")}
                   </div>
-                  <div className="leading-tight">
-                    <div className="font-semibold">{r.author_name}</div>
-                    <div className="text-xs text-[var(--color-muted)]">{r.relative_time_description}</div>
-                  </div>
-                </div>
+                )}
+              </div>
+            </div>
 
-                <div className="mt-3">
-                  <Stars value={r.rating} />
-                </div>
+            {r.rating != null && (
+              <div className="mb-2 text-[15px] font-semibold">{r.rating} ★</div>
+            )}
 
-                <p className="mt-3 text-[15px] leading-6 text-[var(--color-foreground)]/85 line-clamp-6">
-                  {r.text}
-                </p>
-              </article>
-            ))}
-          </div>
-        ) : null}
+            <p className="text-[15px] leading-relaxed">
+              {r.text?.slice(0, 260)}
+              {r.text && r.text.length > 260 ? "…" : ""}
+            </p>
+          </article>
+        ))}
+      </div>
 
-        {/* CTA a Google-re */}
+      {mapsUrl && (
         <div className="mt-6">
           <a
-            href={`https://www.google.com/maps/place/?q=place_id:${process.env.NEXT_PUBLIC_PLACE_ID ?? ""}`}
-            target="_blank" rel="noreferrer"
-            className="inline-flex items-center rounded-full px-5 py-3 font-bold text-white shadow-spa"
-            style={{ backgroundColor: "var(--color-primary)" }}
+            href={mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center rounded-full border px-4 py-2 hover:bg-[var(--color-bg)]"
           >
             További vélemények a Google-ön
           </a>
         </div>
-      </div>
+      )}
     </section>
-  );
-}
-
-function Stars({ value }: { value: number }) {
-  const full = Math.floor(value);
-  const half = value - full >= 0.5;
-  return (
-    <div className="inline-flex items-center gap-0.5 align-middle">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <svg key={i} width="18" height="18" viewBox="0 0 24 24"
-             className={i < full || (i === full && half) ? "text-yellow-500" : "text-gray-300"}
-             fill="currentColor" aria-hidden>
-          <path d="M12 .587l3.668 7.568L24 9.748l-6 5.853 1.417 8.262L12 19.771 4.583 23.863 6 15.601 0 9.748l8.332-1.593z" />
-        </svg>
-      ))}
-    </div>
   );
 }
