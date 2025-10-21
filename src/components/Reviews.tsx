@@ -22,9 +22,9 @@ export default function Reviews() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/reviews")
+    fetch("/api/reviews/static")
       .then((r) => r.json())
-      .then((j) => (j.error ? setErr(j.error) : setData(j)))
+      .then(setData)
       .catch((e) => setErr(String(e)));
   }, []);
 
