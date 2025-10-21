@@ -24,18 +24,14 @@ const FIELD_MASK = "rating,userRatingCount,reviews,googleMapsUri";
 
 export async function GET(req: Request) {
   const u = new URL(req.url);
-  const provided = u.searchParams.get("secret") ?? "";
-  const needed = process.env.CRON_SECRET ?? "";
+  const providedRaw = u.searchParams.get("secret") ?? "";
+  const provided = decodeURIComponent(providedRaw).trim();
+  const needed = (process.env.CRON_SECRET ?? "").trim();
   const isCron = req.headers.get("x-vercel-cron") === "1";
 
   if (!isCron && provided !== needed) {
-    // >>> ideiglenes diagnosztika, hogy lásd miért 403
     return NextResponse.json(
-      { ok: false, reason: "FORBIDDEN", diag: {
-          provided,
-          needStartsWith: needed ? needed.slice(0, 4) + "…" : null,
-          isCron
-        }},
+      { ok: false, reason: "FORBIDDEN", diag: { provided, needStartsWith: needed ? needed.slice(0,4) + "…" : null, isCron } },
       { status: 403 }
     );
   }
