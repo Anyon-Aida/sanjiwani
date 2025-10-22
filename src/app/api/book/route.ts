@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import { keyDay, keyBooking, slotsNeeded, DAY_SLOTS, hhmmFromIndex } from "@/lib/booking";
 
+
 const LUA_TRY_BOOK = `
 for i=1,#ARGV do
   if redis.call('SISMEMBER', KEYS[1], ARGV[i]) == 1 then
@@ -56,41 +57,40 @@ export async function POST(req: Request) {
   };
   await redis.hset(keyBooking(b.date, b.startIndex), record);
 
-  // ---- RESEND diagnosztikával
-  const owner = process.env.OWNER_EMAIL;
-  const apiKey = process.env.RESEND_API_KEY;
-  let mail: unknown = { skipped: true as const, reason: "missing_config" as const };
+    // ---- RESEND diagnosztikával
+    const owner = process.env.OWNER_EMAIL;
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM ?? "onboarding@resend.dev";
 
-  if (apiKey && owner) {
+    let mail: unknown = { skipped: true as const, reason: "missing_config" as const };
+
+    if (apiKey && owner) {
     try {
-      const { Resend } = await import("resend");
-      const resend = new Resend(apiKey);
+        const { Resend } = await import("resend");
+        const resend = new Resend(apiKey);
+        const startLabel = hhmmFromIndex(b.startIndex);
 
-      // FIGYELEM: a "from" domainnek VERIFIKÁLTNAK kell lennie a Resendben!
-      const from = process.env.RESEND_FROM ?? "onboarding@resend.dev"; // ideiglenes teszt-cím
-
-      const startLabel = hhmmFromIndex(b.startIndex);
-
-      const resp = await resend.emails.send({
-        from,
+        const resp = await resend.emails.send({
+        from,                // fontos: ha NINCS verifikált domain, használd ideiglenesen az onboarding@resend.dev-et
         to: owner,
         subject: `Új foglalás – ${b.serviceName} (${b.date} ${startLabel})`,
         text: [
-          `Szolgáltatás: ${b.serviceName} (${b.durationMin} perc)`,
-          `Időpont: ${b.date} ${startLabel}`,
-          `Név: ${b.customerName}`,
-          `Telefon: ${b.phone}`,
+            `Szolgáltatás: ${b.serviceName} (${b.durationMin} perc)`,
+            `Időpont: ${b.date} ${startLabel}`,
+            `Név: ${b.customerName}`,
+            `Telefon: ${b.phone}`,
         ].join("\n"),
-      });
+        });
 
-      mail = resp; // { data?: {id:string}, error?: {...} }
-      console.log("RESEND_RESULT", JSON.stringify(resp));
+        mail = resp;                            // { data?: {id}, error?: {...}, ... }
+        console.log("RESEND_RESULT", JSON.stringify(resp));
     } catch (e) {
-      mail = { error: String((e as Error).message ?? e) };
-      console.error("RESEND_ERROR", e);
+        mail = { error: String((e as Error).message ?? e) };
+        console.error("RESEND_ERROR", e);
     }
-  }
+    } else {
+    console.warn("RESEND_SKIPPED", { hasKey: !!apiKey, hasOwner: !!owner, from });
+    }
 
-  // a frontend felé is visszaadjuk a diagnosztikát (hasznos fejlesztésnél)
-  return NextResponse.json({ ok: true, mail });
+    return NextResponse.json({ ok: true, mail });
 }
