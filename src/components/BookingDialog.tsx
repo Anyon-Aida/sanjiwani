@@ -14,10 +14,7 @@ import {
   message,
 } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import {
-  DAY_SLOTS,
-  hhmmFromIndex,
-} from "@/lib/booking";
+import { DAY_SLOTS, hhmmFromIndex } from "@/lib/booking";
 
 type BookingPayload = {
   date: string;
@@ -49,71 +46,75 @@ export default function BookingDialog({
   const [duration, setDuration] = useState<number>(defaultDuration);
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
   const [disabledStarts, setDisabledStarts] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const dateKey = date.format("YYYY-MM-DD");
-
-  // 9:00..(zárásig) 30 perces kezdő indexek címkével
   const starts = useMemo(
     () => Array.from({ length: DAY_SLOTS }, (_, i) => ({ i, label: hhmmFromIndex(i) })),
     []
   );
 
-  // elérhetőség a kiválasztott nap/időtartam alapján
   useEffect(() => {
+    if (!open) return;
     (async () => {
-      setPickedIndex(null);
-      const res = await fetch(
-        `/api/book/availability?date=${dateKey}&duration=${duration}`,
-        { cache: "no-store" }
-      );
-      const json = await res.json();
-      if (json?.ok && Array.isArray(json.disabled)) {
-        setDisabledStarts(json.disabled as number[]);
-      } else {
+      try {
+        setPickedIndex(null);
+        const res = await fetch(
+          `/api/book/availability?date=${dateKey}&duration=${duration}`,
+          { cache: "no-store" }
+        );
+        const json = await res.json();
+        if (json?.ok && Array.isArray(json.disabled)) setDisabledStarts(json.disabled);
+        else setDisabledStarts([]);
+      } catch (e) {
+        console.error("availability error", e);
         setDisabledStarts([]);
       }
     })();
-  }, [dateKey, duration]);
+  }, [open, dateKey, duration]);
 
-  const submit = async () => {
+  const onFinish = async (vals: { name: string; phone: string }) => {
+    if (pickedIndex == null) {
+      message.warning("Válassz időpontot!");
+      return;
+    }
+
+    const payload: BookingPayload = {
+      date: dateKey,
+      startIndex: pickedIndex,
+      durationMin: duration,
+      serviceId: service.id,
+      serviceName: service.name,
+      customerName: vals.name,
+      phone: vals.phone,
+    };
+
     try {
-      const vals = await form.validateFields();
-      if (pickedIndex == null) {
-        message.warning("Válassz időpontot!");
-        return;
-      }
-
-      const payload: BookingPayload = {
-        date: dateKey,
-        startIndex: pickedIndex,
-        durationMin: duration,
-        serviceId: service.id,
-        serviceName: service.name,
-        customerName: vals.name,
-        phone: vals.phone,
-      };
+      setLoading(true);
+      // debug: ha nem látsz network kérést, ezt látni fogod a konzolban
+      console.log("→ submit payload", payload);
 
       const r = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const j = await r.json();
+      const j = await r.json().catch(() => ({} as any));
 
       if (!r.ok || !j?.ok) {
-        if (r.status === 409) {
-          message.error("Sajnos közben elfogyott ez az időpont. Válassz másikat!");
-        } else {
-          message.error("Nem sikerült lefoglalni. Próbáld újra.");
-        }
+        if (r.status === 409) message.error("Sajnos közben elfogyott ez az időpont. Válassz másikat!");
+        else message.error("Nem sikerült lefoglalni. Próbáld újra.");
         return;
       }
 
       message.success("Foglalás rögzítve! Hamarosan visszaigazolunk.");
       onConfirm?.(payload);
       onClose();
-    } catch {
-      // form validate vagy hálózati hiba
+    } catch (e) {
+      console.error("submit error", e);
+      message.error("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,15 +123,23 @@ export default function BookingDialog({
       open={open}
       onCancel={onClose}
       title={service.name}
-      onOk={submit}
+      onOk={() => form.submit()}          // <-- form submit
       okText="Foglalás megerősítése"
+      confirmLoading={loading}            // <-- vizuális töltés
+      destroyOnClose
     >
-      <Form form={form} layout="vertical" requiredMark={false}>
+      <Form
+        id="bookingForm"
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        onFinish={onFinish}               // <-- ide fut be a submit
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Form.Item name="name" label="Név" rules={[{ required: true }]}>
+          <Form.Item name="name" label="Név" rules={[{ required: true, message: "Add meg a neved!" }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="phone" label="Telefon" rules={[{ required: true }]}>
+          <Form.Item name="phone" label="Telefon" rules={[{ required: true, message: "Add meg a telefonszámod!" }]}>
             <Input />
           </Form.Item>
         </div>
@@ -152,18 +161,14 @@ export default function BookingDialog({
             <Select
               value={duration}
               onChange={setDuration}
-              options={service.durations.map((m) => ({
-                value: m,
-                label: `${m} perc`,
-              }))}
+              options={service.durations.map((m) => ({ value: m, label: `${m} perc` }))}
               style={{ width: "100%" }}
             />
           </div>
         </div>
 
         {(["Reggel", "Nap", "Este"] as const).map((group) => {
-          const rng =
-            group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
+          const rng = group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
           return (
             <div key={group} style={{ marginBottom: 8 }}>
               <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
