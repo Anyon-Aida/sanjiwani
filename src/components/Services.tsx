@@ -216,9 +216,6 @@ export default function Services() {
           }}
           defaultDuration={booking.duration}
           onClose={() => setBooking(null)}
-          onConfirm={(payload) => {
-            // ide mehet a submit / navigate
-          }}
         />
       )}
 
