@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   const owner = process.env.OWNER_EMAIL;
   const fromAddr = process.env.RESEND_FROM || "onboarding@resend.dev";
 
-  let mail: any = null;
+  let mail: unknown = null;
   if (apiKey && (owner || isEmail(b.email))) {
     try {
       const { Resend } = await import("resend");
