@@ -3,8 +3,6 @@ import { redis } from "@/lib/redis";
 import { keyDay, keyBooking, slotsNeeded, DAY_SLOTS, hhmmFromIndex } from "@/lib/booking";
 
 const LUA_TRY_BOOK = `
--- KEYS[1] = day key
--- ARGV = indices...
 for i=1,#ARGV do
   if redis.call('SISMEMBER', KEYS[1], ARGV[i]) == 1 then
     return 0
@@ -15,8 +13,8 @@ return 1
 `;
 
 type Body = {
-  date: string;        // "2025-10-21"
-  startIndex: number;  // 0..DAY_SLOTS-1
+  date: string;
+  startIndex: number;
   durationMin: number;
   serviceId: string;
   serviceName: string;
@@ -26,8 +24,8 @@ type Body = {
 
 export async function POST(req: Request) {
   const b = (await req.json()) as Body;
-  const errors: string[] = [];
 
+  const errors: string[] = [];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date)) errors.push("date");
   if (b.startIndex < 0 || b.startIndex >= DAY_SLOTS) errors.push("startIndex");
   if (!b.customerName) errors.push("customerName");
@@ -37,16 +35,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "BAD_REQUEST", fields: errors }, { status: 400 });
   }
 
+  // atomikus foglalás
   const need = slotsNeeded(b.durationMin);
   const indices = Array.from({ length: need }, (_, k) => String(b.startIndex + k));
-
-  // atomikus próbafoglalás
-  const ok = (await redis.eval(LUA_TRY_BOOK, [keyDay(b.date)], indices)) as number;
+  const ok = await redis.eval(LUA_TRY_BOOK, [keyDay(b.date)], indices);
   if (!ok) {
     return NextResponse.json({ ok: false, error: "CONFLICT" }, { status: 409 });
   }
 
-  // adatok mentése (csak a kezdő slotnál tartunk részletes rekordot)
+  // részletek mentése
   const record = {
     serviceId: b.serviceId,
     serviceName: b.serviceName,
@@ -59,31 +56,41 @@ export async function POST(req: Request) {
   };
   await redis.hset(keyBooking(b.date, b.startIndex), record);
 
-  // ---- email értesítés (Resend) – dinamikus import + fire-and-forget
-  (async () => {
-    const apiKey = process.env.RESEND_API_KEY;
-    const to = process.env.OWNER_EMAIL; // pl. info@sanjiwani.hu
-    if (!apiKey || !to) return;
+  // ---- RESEND diagnosztikával
+  const owner = process.env.OWNER_EMAIL;
+  const apiKey = process.env.RESEND_API_KEY;
+  let mail: unknown = { skipped: true as const, reason: "missing_config" as const };
 
+  if (apiKey && owner) {
     try {
       const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
+
+      // FIGYELEM: a "from" domainnek VERIFIKÁLTNAK kell lennie a Resendben!
+      const from = process.env.RESEND_FROM ?? "onboarding@resend.dev"; // ideiglenes teszt-cím
+
       const startLabel = hhmmFromIndex(b.startIndex);
 
-      await resend.emails.send({
-        from: "Foglalás <noreply@sanjwani.hu>", // saját verified domain után
-        to,
+      const resp = await resend.emails.send({
+        from,
+        to: owner,
         subject: `Új foglalás – ${b.serviceName} (${b.date} ${startLabel})`,
-        text:
-          `Szolgáltatás: ${b.serviceName} (${b.durationMin} perc)\n` +
-          `Időpont: ${b.date} ${startLabel}\n` +
-          `Név: ${b.customerName}\n` +
-          `Telefon: ${b.phone}\n`,
+        text: [
+          `Szolgáltatás: ${b.serviceName} (${b.durationMin} perc)`,
+          `Időpont: ${b.date} ${startLabel}`,
+          `Név: ${b.customerName}`,
+          `Telefon: ${b.phone}`,
+        ].join("\n"),
       });
-    } catch (e) {
-      console.error("Resend email hiba:", e);
-    }
-  })();
 
-  return NextResponse.json({ ok: true });
+      mail = resp; // { data?: {id:string}, error?: {...} }
+      console.log("RESEND_RESULT", JSON.stringify(resp));
+    } catch (e) {
+      mail = { error: String((e as Error).message ?? e) };
+      console.error("RESEND_ERROR", e);
+    }
+  }
+
+  // a frontend felé is visszaadjuk a diagnosztikát (hasznos fejlesztésnél)
+  return NextResponse.json({ ok: true, mail });
 }
