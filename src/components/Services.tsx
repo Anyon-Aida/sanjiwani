@@ -58,20 +58,6 @@ const SERVICES: Service[] = [
   },
 ];
 
-/** próba árazás – később Sanity-ből jön majd */
-const BASE_PRICES: Record<string, Partial<Record<number, number>>> = {
-  "traditional-thai": { 60: 15000, 90: 19000, 120: 23000 },
-  "oily-bali": { 60: 14900, 90: 19900, 120: 23900 },
-  "thai-foot": { 30: 7900, 60: 14900, 90: 19900 },
-};
-
-const fmtHUF = (n: number) =>
-  new Intl.NumberFormat("hu-HU", {
-    style: "currency",
-    currency: "HUF",
-    maximumFractionDigits: 0,
-  }).format(n);
-
 /* ====== komponens ====== */
 
 export default function Services() {

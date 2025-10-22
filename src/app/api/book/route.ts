@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     if (!apiKey || !to) return;
 
     try {
-      // @ts-ignore: dynamic import for optional Resend package without bundled types
+      // @ts-expect-error: lua eval visszatérési típusa nem tudható előre
       const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
       const startLabel = hhmmFromIndex(b.startIndex);

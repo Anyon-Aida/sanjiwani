@@ -99,12 +99,17 @@ export default function BookingDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const j = await r.json().catch(() => ({} as any));
+      let okFlag = false;
+      try {
+        const j = (await r.json()) as { ok?: boolean };
+        okFlag = !!j.ok;
+      } catch {
+        okFlag = false;
+      }
 
-      if (!r.ok || !j?.ok) {
-        if (r.status === 409) message.error("Sajnos közben elfogyott ez az időpont. Válassz másikat!");
-        else message.error("Nem sikerült lefoglalni. Próbáld újra.");
-        return;
+      if (!r.ok || !okFlag) {
+        if (r.status === 409) return message.error("Sajnos közben elfogyott ez az időpont. Válassz másikat!");
+        return message.error("Nem sikerült lefoglalni. Próbáld újra.");
       }
 
       message.success("Foglalás rögzítve! Hamarosan visszaigazolunk.");
