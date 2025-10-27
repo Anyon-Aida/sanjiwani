@@ -17,71 +17,15 @@ export default function Gallery({
   height?: number;
   gap?: number;
 }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // drag state + momentum
-  const drag = useRef({
-    active: false,
-    x: 0,
-    lastX: 0,
-    lastT: 0,
-    scrollLeft: 0,
-    vx: 0, // px/ms
-    raf: 0,
-  });
-
-  const stopMomentum = () => {
-    if (drag.current.raf) cancelAnimationFrame(drag.current.raf);
-    drag.current.vx = 0;
-    drag.current.raf = 0;
-  };
-
-  const onPointerDown = (e: React.PointerEvent) => {
+  const scrollByCards = (dir: 1 | -1) => {
     const el = scrollerRef.current!;
-    el.setPointerCapture(e.pointerId);
-    drag.current.active = true;
-    drag.current.x = e.clientX;
-    drag.current.lastX = e.clientX;
-    drag.current.lastT = performance.now();
-    drag.current.scrollLeft = el.scrollLeft;
-    stopMomentum();
+    const cardW = (height * 4) / 3 + gap;
+    el.scrollBy({ left: dir * cardW * 2, behavior: "smooth" });
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current.active) return;
-    const el = scrollerRef.current!;
-    const now = performance.now();
-    const dx = e.clientX - drag.current.x;
-    el.scrollLeft = drag.current.scrollLeft - dx;
-
-    // sebesség becslés a momentumhoz
-    const dt = now - drag.current.lastT || 1;
-    drag.current.vx = (e.clientX - drag.current.lastX) / dt; // px/ms
-    drag.current.lastX = e.clientX;
-    drag.current.lastT = now;
-  };
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    drag.current.active = false;
-    try { scrollerRef.current?.releasePointerCapture(e.pointerId); } catch {}
-
-    // momentum görgetés
-    const el = scrollerRef.current!;
-    const decay = 0.95; // csillapítás
-    const step = () => {
-      drag.current.vx *= decay;
-      el.scrollLeft -= drag.current.vx * 16; // kb 60fps → ~16ms
-      if (Math.abs(drag.current.vx) > 0.02) {
-        drag.current.raf = requestAnimationFrame(step);
-      } else {
-        drag.current.raf = 0;
-      }
-    };
-    if (Math.abs(drag.current.vx) > 0.1) step();
-  };
-
-  // görgő → vízszintes
+  // görgő -> vízszintes (kényelmi)
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -95,10 +39,11 @@ export default function Gallery({
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // lightbox
+  // LIGHTBOX
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const close = () => setOpenIdx(null);
-  const prev = () => setOpenIdx((i) => (i == null ? i : (i - 1 + pics.length) % pics.length));
+  const prev = () =>
+    setOpenIdx((i) => (i == null ? i : (i - 1 + pics.length) % pics.length));
   const next = () => setOpenIdx((i) => (i == null ? i : (i + 1) % pics.length));
 
   useEffect(() => {
@@ -112,22 +57,16 @@ export default function Gallery({
     return () => document.removeEventListener("keydown", onKey);
   }, [openIdx]);
 
-  const scrollByCards = (dir: 1 | -1) => {
-    const el = scrollerRef.current!;
-    const cardW = (height * 4) / 3 + gap;
-    el.scrollBy({ left: dir * cardW * 2, behavior: "smooth" });
-  };
-
   return (
     <section className="my-16">
-      {/* KÖZÉPRE zárt, max-width mint a többi szekciónál */}
-      <div ref={wrapRef} className="mx-auto w-full max-w-5xl px-4">
+      {/* középre zárt, azonos max-width mint a többi szekciónál */}
+      <div className="mx-auto w-full max-w-5xl px-4">
         <div className="flex items-end justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-3xl font-serif tracking-tight">Galéria</h2>
+            <h2 className="text-3xl font-serif tracking-tight">{title}</h2>
             <p className="text-[var(--color-muted)] mt-1">{subtitle}</p>
           </div>
-          <div className="hidden md:flex gap-2">
+          <div className="hidden md:flex gap-2 z-10">
             <button
               aria-label="Előző képek"
               onClick={() => scrollByCards(-1)}
@@ -154,16 +93,12 @@ export default function Gallery({
             scrollbarWidth: "none",
             msOverflowStyle: "none",
           }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
-          aria-label="Képgaléria – húzd jobbra/balra"
+          aria-label="Képgaléria"
         >
-          {/* scrollbar elrejtés webkitnél */}
-          <style jsx>{`div::-webkit-scrollbar { display: none; }`}</style>
+          {/* webkit scrollbar off */}
+          <style jsx>{`div::-webkit-scrollbar{display:none;}`}</style>
 
-          {/* szélső árnyalat */}
+          {/* szélső fade – NEM fogja a klikket */}
           <div className="pointer-events-none absolute left-0 top-0 h-full w-10 bg-gradient-to-r from-[var(--color-bg)] to-transparent" />
           <div className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-[var(--color-bg)] to-transparent" />
 
@@ -177,7 +112,7 @@ export default function Gallery({
                   height,
                   scrollSnapAlign: "start",
                 }}
-                onClick={() => setOpenIdx(i)}
+                onClick={() => setOpenIdx(i)} // <- KATT = NAGYÍT
               >
                 <Image
                   src={p.src}
@@ -194,12 +129,11 @@ export default function Gallery({
         </div>
       </div>
 
-      {/* LIGHTBOX */}
+      {/* LIGHTBOX (nagyított nézet sötét háttérrel) */}
       {openIdx != null && (
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center"
           onClick={(e) => {
-            // csak háttérre kattintva zárjon
             if (e.target === e.currentTarget) close();
           }}
         >
@@ -211,7 +145,6 @@ export default function Gallery({
             ✕
           </button>
 
-          {/* navigáció */}
           <button
             className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 px-3 py-1 text-lg shadow hover:bg-white"
             onClick={(e) => { e.stopPropagation(); prev(); }}
