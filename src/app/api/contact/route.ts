@@ -19,6 +19,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
+  function getErrorMessage(e: unknown): string {
+    if (e instanceof Error) return e.message;
+        if (
+            typeof e === "object" &&
+            e !== null &&
+            "message" in e &&
+            typeof (e as { message: unknown }).message === "string"
+        ) {
+            return (e as { message: string }).message;
+        }
+        return "MAIL_ERROR";
+    }
+
   try {
     const resend = new Resend(apiKey);
 
@@ -48,12 +61,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    // Resend hibaüzenet továbbadása – hasznos a diagnózishoz
-    const msg =
-      err && typeof err === "object" && "message" in err
-        ? (err as any).message
-        : "MAIL_ERROR";
+  } catch (err: unknown) {
+    const msg = getErrorMessage(err);
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }
