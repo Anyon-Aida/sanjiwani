@@ -28,17 +28,18 @@ export default function Footer() {
                    w-[520px] h-[110px] overflow-hidden"
       >
         <div
-          className="w-[520px] h-[520px] rounded-full bg-[#caa46f]
-                     absolute bottom-0 left-0"
-        />
-        <div className="absolute inset-0 flex items-center justify-center pb-8">
-          <Image
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-[110px] left-1/2 -translate-x-1/2
+                    z-30 w-[520px] h-[220px] bg-[#caa46f] rounded-b-full
+                    flex items-center justify-center"
+        >
+        <Image
             src="/Sanjiwanihome.png"
             alt="Sanjīwanī – The Cleansing Power of Massage"
             width={230}
             height={96}
             priority
-          />
+        />
         </div>
       </div>
 
