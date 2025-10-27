@@ -63,7 +63,7 @@ export default function Gallery({
       <div className="mx-auto w-full">
         <div className="flex items-end justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-3xl font-serif tracking-tight">{title}</h2>
+            <h2 className="text-3xl font-bold font-serif tracking-tight">{title}</h2>
             <p className="text-[var(--color-muted)] mt-1">{subtitle}</p>
           </div>
           <div className="hidden md:flex gap-2 z-10">

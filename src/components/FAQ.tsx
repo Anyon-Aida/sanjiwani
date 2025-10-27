@@ -24,7 +24,7 @@ const QA_ITEMS: QA[] = [
 export default function FAQ() {
   return (
     <section className="container-narrow my-16">
-      <h2 className="text-3xl md:text-4xl font-serif tracking-tight mb-6">
+      <h2 className="text-3xl font-bold leading-tight font-serif tracking-tight mb-6">
         Gyakori kérdések
       </h2>
 
@@ -42,22 +42,22 @@ export default function FAQ() {
                          text-[15px] md:text-[16px] font-medium
                          list-none"
             >
-              <span
-                className="inline-flex size-5 shrink-0 items-center justify-center
-                           rounded-full border border-[color:var(--border,#ece8e3)]
-                           bg-white transition-transform duration-200
-                           group-open:rotate-90"
-                aria-hidden
-              >
+                <span
+                    className="inline-flex size-5 shrink-0 items-center justify-center
+                                text-[color:var(--text,#2a261f)]
+                                transition-transform duration-200
+                                group-open:rotate-90"
+                    aria-hidden
+                >
                 {/* kis „chevron” – fima-szerű */}
                 <svg viewBox="0 0 24 24" fill="none" className="size-3.5">
-                  <path
+                    <path
                     d="M9 18l6-6-6-6"
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                  />
+                    />
                 </svg>
               </span>
 
