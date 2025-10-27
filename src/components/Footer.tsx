@@ -29,7 +29,7 @@ export default function Footer() {
                     [clip-path:ellipse(260px_220px_at_50%_100%)]
                     flex items-center justify-center">
         <Image src="/Sanjiwanihome.png" alt="Sanjīwanī – The Cleansing Power of Massage"
-                width={230} height={96} priority />
+                width={300} height={96} priority />
     </div>
 
       {/* belső tartalom */}
