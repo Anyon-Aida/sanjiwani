@@ -160,7 +160,7 @@ export default function Gallery({
             →
           </button>
 
-          <div className="mx-auto max-w-6xl w-full">
+          <div className="mx-auto w-full max-w-6xl px-4 md:px-6">
             <Image
               src={pics[openIdx].src}
               alt={pics[openIdx].alt || "Nagyított kép"}
