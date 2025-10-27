@@ -155,7 +155,7 @@ export default function Contact() {
         </form>
 
         {/* Jobb oszlop – térkép (beágyazott Google Maps) */}
-        <div className="h-[340px] md:h-[420px] rounded-md overflow-hidden border border-[color:var(--border,#e9e5df)] bg-[#e4e3e1]">
+        <div className="rounded-md overflow-hidden border border-[color:var(--border,#e9e5df)] bg-[#e4e3e1]">
           <iframe
             title="Sanjiwani – Térkép"
             src={mapSrc}
