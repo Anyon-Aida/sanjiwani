@@ -60,7 +60,7 @@ export default function Gallery({
   return (
     <section className="container-narrow my-16">
       {/* középre zárt, azonos max-width mint a többi szekciónál */}
-      <div className="mx-auto w-full max-w-5xl px-4">
+      <div className="mx-auto w-full">
         <div className="flex items-end justify-between gap-4 mb-6">
           <div>
             <h2 className="text-3xl font-serif tracking-tight">{title}</h2>
