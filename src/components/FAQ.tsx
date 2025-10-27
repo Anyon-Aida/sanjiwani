@@ -1,83 +1,77 @@
-﻿// src/components/FAQ.tsx
-"use client";
-import React from "react";
+﻿"use client";
 
 type QA = { q: string; a: string };
 
-const ITEMS: QA[] = [
+const QA_ITEMS: QA[] = [
   {
     q: "Melyik masszázst válasszam első alkalommal?",
-    a: "Ha bizonytalan vagy, a 60 perces Traditional Thai Massage jó kiindulás. Erősséget a helyszínen egyeztetünk, és az aktuális állapotodhoz igazítjuk."
+    a: "Ha még nem jártál nálunk, a 60 perces Traditional Thai vagy az Oily Bali masszázs a legjobb kezdés. A terapeutád az első pár percben rákérdez az igényeidre, és ahhoz igazítja az erősséget.",
   },
   {
     q: "Vannak ellenjavallatok?",
-    a: "Láz, fertőzés, bőrgyulladás, friss műtét/sérülés, trombózis, előrehaladott terhesség vagy orvosi tiltás esetén nem végzünk kezelést. Kérdés esetén jelezd foglaláskor!"
+    a: "Akut láz, fertőzés, friss műtét/sérülés, trombózis gyanúja, valamint várandósság első trimeszterében nem javasolt. Kérdés esetén hívj minket!",
   },
   {
     q: "Hogyan módosíthatom vagy mondhatom le az időpontot?",
-    a: "Ingyenesen módosíthatod/lemondhatod legalább 12 órával a foglalt időpont előtt. Későbbi lemondásnál a kezelési díj 50%-át felszámíthatjuk."
+    a: "Az időpontod a foglalás visszaigazoló emailben kapott hivatkozással, vagy telefonon tudod módosítani/lemondani. Kérjük, legalább 24 órával előtte jelezd.",
   },
   {
     q: "Mennyi ideig tart egy kezelés?",
-    a: "A legtöbb kezelés 60 / 90 / 120 perces. Az érkezést és felkészülést érdemes 5–10 perccel korábban kezdeni, hogy pontosan tudjunk indulni."
+    a: "Szolgáltatástól függően 60 / 90 / 120 perc. Az érkezést és a felkészülést a kezelési időn felül, plusz 5–10 percben számold.",
   },
-  {
-    q: "Mit vigyek magammal?",
-    a: "Semmit nem muszáj. Tiszta lepedőt, törölközőt és minden szükségest biztosítunk. Érdemes kényelmes ruhában érkezni."
-  },
-  {
-    q: "Kártyával vagy készpénzzel fizethetek?",
-    a: "Mindkettő megoldható. Ajándékutalványt is kínálunk, amely a legtöbb szolgáltatásra felhasználható."
-  }
 ];
 
 export default function FAQ() {
-  // SEO: struktúrált adat
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": ITEMS.map((i) => ({
-      "@type": "Question",
-      "name": i.q,
-      "acceptedAnswer": { "@type": "Answer", "text": i.a }
-    }))
-  };
-
   return (
     <section className="container-narrow my-16">
-      <h2 className="section-title">Gyakori kérdések</h2>
+      <h2 className="text-3xl md:text-4xl font-serif tracking-tight mb-6">
+        Gyakori kérdések
+      </h2>
 
       <div className="space-y-3">
-        {ITEMS.map((item, idx) => (
+        {QA_ITEMS.map((item, i) => (
           <details
-            key={idx}
-            className="group rounded-xl border border-[var(--color-soft-border)] bg-[var(--color-soft-bg)] p-0"
+            key={i}
+            className="group rounded-2xl border border-[color:var(--border,#ece8e3)]
+                       bg-[color:var(--card-bg,#fff)]/60 shadow-sm open:shadow
+                       transition-shadow"
           >
-            <summary className="flex cursor-pointer select-none items-center gap-3 px-4 py-4 text-[var(--color-text)]">
-              {/* chevron */}
+            <summary
+              className="flex items-center gap-3 cursor-pointer select-none
+                         px-4 md:px-5 py-4 md:py-4
+                         text-[15px] md:text-[16px] font-medium
+                         list-none"
+            >
               <span
-                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--color-soft-border)]
-                           text-[var(--color-muted)] transition-transform group-open:rotate-90"
+                className="inline-flex size-5 shrink-0 items-center justify-center
+                           rounded-full border border-[color:var(--border,#ece8e3)]
+                           bg-white transition-transform duration-200
+                           group-open:rotate-90"
                 aria-hidden
               >
-                ▶
+                {/* kis „chevron” – fima-szerű */}
+                <svg viewBox="0 0 24 24" fill="none" className="size-3.5">
+                  <path
+                    d="M9 18l6-6-6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </span>
-              <span className="font-medium">{item.q}</span>
+
+              <span className="flex-1 text-[color:var(--text,#2a261f)]">
+                {item.q}
+              </span>
             </summary>
 
-            <div className="px-4 pb-4 pt-0 text-[var(--color-muted)] leading-relaxed">
+            <div className="px-4 md:px-5 pb-5 pt-1 text-[15px] leading-relaxed text-[color:var(--muted,#5b534a)]">
               {item.a}
             </div>
           </details>
         ))}
       </div>
-
-      {/* SEO schema.org */}
-      <script
-        type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD szükséges
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
     </section>
   );
 }
