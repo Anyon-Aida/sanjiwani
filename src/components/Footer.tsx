@@ -22,20 +22,15 @@ export default function Footer() {
   return (
     <footer className="relative z-20 mt-24 bg-[#caa46f] text-white overflow-visible">
       {/* felfelé ívelt kupola */}
-      <div
-        aria-hidden="true"
+    <div aria-hidden="true"
         className="pointer-events-none absolute -top-[100px] left-1/2 z-[1]
-          h-[220px] w-[520px] -translate-x-1/2 rounded-t-full bg-[#caa46f]
-          flex items-center justify-center"
-      >
-        <Image
-            src="/Sanjiwanihome.png"
-            alt="Sanjīwanī – The Cleansing Power of Massage"
-            width={230}
-            height={96}
-            priority
-        />
-        </div>
+                    h-[220px] w-[520px] -translate-x-1/2
+                    bg-[#caa46f]
+                    [clip-path:ellipse(260px_220px_at_50%_100%)]
+                    flex items-center justify-center">
+        <Image src="/Sanjiwanihome.png" alt="Sanjīwanī – The Cleansing Power of Massage"
+                width={230} height={96} priority />
+    </div>
 
       {/* belső tartalom */}
       <div className="mx-auto max-w-[1120px] px-6 pt-32 md:pt-40 pb-10 relative z-[2]">
