@@ -102,7 +102,8 @@ export async function POST(req: Request) {
           text:
             `Köszönjük a foglalásod!\n\n` +
             `${lines}\n\n` +
-            `Ha módosítani szeretnél, hívd ezt a számot: ${b.phone}`,
+            `Ha módosítani szeretnél, hívd ezt a számot: +36 30 264 7176 \n\n` +
+            `vagy írj emailt: info@sanjiwani.hu`,
         });
       }
     } catch (err) {
