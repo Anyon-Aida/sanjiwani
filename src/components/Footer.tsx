@@ -10,7 +10,6 @@ export default function Footer() {
     { href: "/sutik", label: "Sütik" },
   ];
 
-  // ezek mehetnek a szekció-id-kre is (pl. #services)
   const rightLinks = [
     { href: "#services", label: "Szolgáltatások" },
     { href: "#prices", label: "Árak" },
@@ -19,23 +18,20 @@ export default function Footer() {
   ];
 
   const goTop = () =>
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
-    <footer className="relative mt-24 bg-[#caa46f] text-white">
+    <footer className="relative mt-24 bg-[#caa46f] text-white overflow-visible">
       {/* kupola + logó */}
       <div
         className="
-          pointer-events-none absolute -top-[110px] left-1/2 z-[1]
-          h-[220px] w-[520px] -translate-x-1/2 rounded-b-full bg-[#caa46f]
+          pointer-events-none absolute -top-[100px] left-1/2 z-[1]
+          h-[200px] w-[520px] -translate-x-1/2 rounded-b-full bg-[#caa46f]
           flex items-center justify-center
         "
       >
         <Image
-          src="/Sanjiwanihome.png"         // <- tedd ide a fehér logód útvonalát
+          src="/Sanjiwanihome.png"
           alt="Sanjīwanī – The Cleansing Power of Massage"
           width={230}
           height={96}
@@ -43,16 +39,14 @@ export default function Footer() {
         />
       </div>
 
-      <div className="container-narrow mx-auto px-6 pt-[150px] pb-10 relative z-[2]">
-        {/* felső két oszlop */}
-        <div className="flex items-start justify-between gap-10">
+      {/* belső tartalom */}
+      <div className="mx-auto max-w-[1120px] px-6 pt-28 md:pt-36 pb-10 relative z-[2]">
+        {/* két oszlop */}
+        <div className="grid grid-cols-2 gap-10 items-start">
           <ul className="space-y-2 text-[15px] leading-6 opacity-95">
             {leftLinks.map((l) => (
               <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className="hover:opacity-80 transition-opacity"
-                >
+                <Link href={l.href} className="transition-opacity hover:opacity-80">
                   {l.label}
                 </Link>
               </li>
@@ -62,10 +56,7 @@ export default function Footer() {
           <ul className="space-y-2 text-right text-[15px] leading-6 opacity-95">
             {rightLinks.map((l) => (
               <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className="hover:opacity-80 transition-opacity"
-                >
+                <Link href={l.href} className="transition-opacity hover:opacity-80">
                   {l.label}
                 </Link>
               </li>
@@ -76,7 +67,7 @@ export default function Footer() {
         {/* elválasztó vonal */}
         <hr className="my-6 border-white/60" />
 
-        {/* alsó sor: copyright + top button */}
+        {/* alsó sor */}
         <div className="flex items-center justify-between">
           <p className="text-[13px] leading-5 opacity-90">
             © {new Date().getFullYear()} Sanjiwani. Minden jog fenntartva.
@@ -87,7 +78,7 @@ export default function Footer() {
             onClick={goTop}
             aria-label="Vissza a tetejére"
             className="
-              group rounded bg-white/95 p-2.5 text-[#caa46f] shadow-sm
+              rounded p-2.5 bg-white/95 text-[#caa46f] shadow-sm
               hover:bg-white transition-colors
             "
           >
