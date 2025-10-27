@@ -43,23 +43,17 @@ export default function FAQ() {
                          list-none"
             >
                 <span
-                    className="inline-flex size-5 shrink-0 items-center justify-center
-                                text-[color:var(--text,#2a261f)]
-                                transition-transform duration-200
-                                group-open:rotate-90"
-                    aria-hidden
+                className="inline-flex size-5 shrink-0 items-center justify-center
+                            transition-transform duration-200
+                            text-[color:var(--text,#2a261f)]
+                            group-open:rotate-90"   // zárt: ▶, nyitott: ▼
+                aria-hidden
                 >
-                {/* kis „chevron” – fima-szerű */}
-                <svg viewBox="0 0 24 24" fill="none" className="size-3.5">
-                    <path
-                    d="M9 18l6-6-6-6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    />
+                {/* teli háromszög */}
+                <svg viewBox="0 0 24 24" className="size-3.5">
+                    <path d="M6 4 L18 12 L6 20 Z" fill="currentColor" />
                 </svg>
-              </span>
+                </span>
 
               <span className="flex-1 text-[color:var(--text,#2a261f)]">
                 {item.q}
