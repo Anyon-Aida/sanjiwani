@@ -24,8 +24,9 @@ export default function Footer() {
       {/* felfelé ívelt kupola */}
       <div
         aria-hidden="true"
-        className="absolute -top-[110px] left-1/2 -translate-x-1/2 z-30
-                   w-[520px] h-[110px] overflow-hidden rounded-t-full"
+        className="pointer-events-none absolute -top-[100px] left-1/2 z-[1]
+          h-[220px] w-[520px] -translate-x-1/2 rounded-t-full bg-[#caa46f]
+          flex items-center justify-center"
       >
         <Image
             src="/Sanjiwanihome.png"
