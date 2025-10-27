@@ -25,14 +25,8 @@ export default function Footer() {
       <div
         aria-hidden="true"
         className="absolute -top-[110px] left-1/2 -translate-x-1/2 z-30
-                   w-[520px] h-[110px] overflow-hidden"
+                   w-[520px] h-[110px] overflow-hidden rounded-t-full"
       >
-        <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-[110px] left-1/2 -translate-x-1/2
-                    z-30 w-[520px] h-[220px] bg-[#caa46f] rounded-b-full
-                    flex items-center justify-center"
-        >
         <Image
             src="/Sanjiwanihome.png"
             alt="Sanjīwanī – The Cleansing Power of Massage"
@@ -41,7 +35,6 @@ export default function Footer() {
             priority
         />
         </div>
-      </div>
 
       {/* belső tartalom */}
       <div className="mx-auto max-w-[1120px] px-6 pt-32 md:pt-40 pb-10 relative z-[2]">
