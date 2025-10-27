@@ -114,34 +114,36 @@ export default function Contact() {
             className="w-full rounded-md border border-[color:var(--border,#e9e5df)] bg-white/70 px-4 py-3 outline-none focus:border-[color:var(--accent,#b28c6a)]"
           />
 
-          <label className="flex items-start gap-3 text-sm leading-5 text-[color:var(--muted,#5b534a)]">
-            <input type="checkbox" name="agree" className="mt-1 size-4" />
+        <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
+        {/* Bal oldal – GDPR checkbox */}
+        <label className="flex items-start gap-3 text-sm leading-5 text-[color:var(--muted,#5b534a)] max-w-[70%]">
+            <input type="checkbox" name="agree" className="mt-1 size-4 shrink-0" />
             <span>
-              I have read and accept the{" "}
-              <a
+            I have read and accept the{" "}
+            <a
                 href="/privacy"
                 className="underline underline-offset-2 hover:opacity-80"
-              >
-                Privacy statement
-              </a>{" "}
-              and I consent to the storage of my given data.
-            </span>
-          </label>
-
-          <div className="pt-1">
-            {/* FIGMA szerinti gomb – meleg barna, világos keret, lekerekítés */}
-            <button
-              type="submit"
-              disabled={sending}
-              className="inline-flex h-12 min-w-[112px] items-center justify-center
-                         rounded-md border border-[rgba(255,255,255,0.6)]
-                         bg-[#9c7a58] px-8 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.25)]
-                         hover:brightness-[1.05] active:translate-y-[1px]
-                         disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
-              {sending ? "Küldés…" : "Send"}
-            </button>
-          </div>
+                Privacy statement
+            </a>{" "}
+            and I consent to the storage of my given data.
+            </span>
+        </label>
+
+        {/* Jobb oldal – Figma gomb */}
+        <button
+            type="submit"
+            disabled={sending}
+            className="relative inline-flex h-[45px] w-[110px] items-center justify-center text-[15px] font-light
+                    text-white bg-[#9c7a58] border border-[#b9a18d] rounded-[3px]
+                    before:absolute before:inset-[-3px] before:rounded-[5px] before:border before:border-[#9c7a58]
+                    before:content-[''] before:pointer-events-none
+                    hover:brightness-[1.05] active:translate-y-[1px]
+                    disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+        >
+            {sending ? "Küldés…" : "Send"}
+        </button>
+        </div>
 
           {/* Visszajelzés */}
           {okMsg && (
