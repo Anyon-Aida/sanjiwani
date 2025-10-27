@@ -39,13 +39,13 @@ export async function POST(req: Request) {
     });
 
     // (opció) automata válasz a feladónak – csak ha van verified domain/teszt mód oké
-    // await resend.emails.send({
-    //   from: "Sanjiwani <noreply@your-verified-domain>",
-    //   to: email,
-    //   subject: "Üzeneted megérkezett",
-    //   text:
-    //     "Köszönjük a megkeresést! Hamarosan felvesszük veled a kapcsolatot.\n\nÜdv,\nSanjiwani",
-    // });
+    await resend.emails.send({
+      from: "Sanjiwani <noreply@your-verified-domain>",
+      to: email,
+      subject: "Üzeneted megérkezett",
+      text:
+        "Köszönjük a megkeresést! Hamarosan felvesszük veled a kapcsolatot.\n\nÜdv,\nSanjiwani",
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
