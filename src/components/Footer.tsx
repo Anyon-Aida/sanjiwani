@@ -35,7 +35,7 @@ export default function Footer() {
         "
       >
         <Image
-          src="/logo-white.svg"         // <- tedd ide a fehér logód útvonalát
+          src="/Sanjiwanihome.png"         // <- tedd ide a fehér logód útvonalát
           alt="Sanjīwanī – The Cleansing Power of Massage"
           width={230}
           height={96}
