@@ -21,25 +21,31 @@ export default function Footer() {
 
   return (
     <footer className="relative z-20 mt-24 bg-[#caa46f] text-white overflow-visible">
-      {/* kupola + logó */}
+      {/* felfelé ívelt kupola */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-[120px] left-1/2 z-30 h-[240px] w-[520px] -translate-x-1/2 rounded-b-[999px] bg-[#caa46f] flex items-center justify-center"
+        className="absolute -top-[110px] left-1/2 -translate-x-1/2 z-30
+                   w-[520px] h-[110px] overflow-hidden"
       >
-        <Image
-          src="/Sanjiwanihome.png"
-          alt="Sanjīwanī – The Cleansing Power of Massage"
-          width={230}
-          height={96}
-          priority
+        <div
+          className="w-[520px] h-[520px] rounded-full bg-[#caa46f]
+                     absolute bottom-0 left-0"
         />
+        <div className="absolute inset-0 flex items-center justify-center pb-8">
+          <Image
+            src="/Sanjiwanihome.png"
+            alt="Sanjīwanī – The Cleansing Power of Massage"
+            width={230}
+            height={96}
+            priority
+          />
+        </div>
       </div>
 
       {/* belső tartalom */}
       <div className="mx-auto max-w-[1120px] px-6 pt-32 md:pt-40 pb-10 relative z-[2]">
-        {/* két oszlop */}
         <div className="grid grid-cols-2 gap-10 items-start">
-          <ul className="space-y-2 text-[15px] leading-6/none opacity-95">
+          <ul className="space-y-2 text-[15px] leading-6 opacity-95">
             {leftLinks.map((l) => (
               <li key={l.href}>
                 <Link
@@ -52,7 +58,7 @@ export default function Footer() {
             ))}
           </ul>
 
-          <ul className="space-y-2 text-right text-[15px] leading-6/none opacity-95">
+          <ul className="space-y-2 text-right text-[15px] leading-6 opacity-95">
             {rightLinks.map((l) => (
               <li key={l.href}>
                 <Link
@@ -66,10 +72,8 @@ export default function Footer() {
           </ul>
         </div>
 
-        {/* elválasztó vonal */}
         <hr className="mt-8 mb-6 border-t border-white/55" />
 
-        {/* alsó sor */}
         <div className="flex items-center justify-between">
           <p className="text-[13px] leading-5 opacity-90">
             © {new Date().getFullYear()} Sanjiwani. Minden jog fenntartva.
