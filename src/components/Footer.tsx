@@ -17,15 +17,15 @@ export default function Footer() {
     { href: "#contact", label: "Kapcsolat" },
   ];
 
-  const goTop = () =>
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const goTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     <footer className="relative z-20 mt-24 bg-[#caa46f] text-white overflow-visible">
       {/* kupola + logó */}
-      <div className="pointer-events-none absolute -top-[110px] left-1/2 z-30
-                h-[220px] w-[520px] -translate-x-1/2 rounded-b-full bg-[#caa46f]
-                flex items-center justify-center">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-[120px] left-1/2 z-30 h-[240px] w-[520px] -translate-x-1/2 rounded-b-[999px] bg-[#caa46f] flex items-center justify-center"
+      >
         <Image
           src="/Sanjiwanihome.png"
           alt="Sanjīwanī – The Cleansing Power of Massage"
@@ -36,23 +36,29 @@ export default function Footer() {
       </div>
 
       {/* belső tartalom */}
-      <div className="mx-auto max-w-[1120px] px-6 pt-28 md:pt-36 pb-10 relative z-[2]">
+      <div className="mx-auto max-w-[1120px] px-6 pt-32 md:pt-40 pb-10 relative z-[2]">
         {/* két oszlop */}
         <div className="grid grid-cols-2 gap-10 items-start">
-          <ul className="space-y-2 text-[15px] leading-6 opacity-95">
+          <ul className="space-y-2 text-[15px] leading-6/none opacity-95">
             {leftLinks.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="transition-opacity hover:opacity-80">
+                <Link
+                  href={l.href}
+                  className="transition-opacity hover:opacity-80"
+                >
                   {l.label}
                 </Link>
               </li>
             ))}
           </ul>
 
-          <ul className="space-y-2 text-right text-[15px] leading-6 opacity-95">
+          <ul className="space-y-2 text-right text-[15px] leading-6/none opacity-95">
             {rightLinks.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="transition-opacity hover:opacity-80">
+                <Link
+                  href={l.href}
+                  className="transition-opacity hover:opacity-80"
+                >
                   {l.label}
                 </Link>
               </li>
@@ -61,7 +67,7 @@ export default function Footer() {
         </div>
 
         {/* elválasztó vonal */}
-        <hr className="my-6 border-white/60" />
+        <hr className="mt-8 mb-6 border-t border-white/55" />
 
         {/* alsó sor */}
         <div className="flex items-center justify-between">
@@ -73,10 +79,7 @@ export default function Footer() {
             type="button"
             onClick={goTop}
             aria-label="Vissza a tetejére"
-            className="
-              rounded p-2.5 bg-white/95 text-[#caa46f] shadow-sm
-              hover:bg-white transition-colors
-            "
+            className="rounded-md p-2.5 bg-[#fffaf4] text-[#caa46f] shadow-sm hover:bg-white transition-colors"
           >
             <svg
               width="16"
