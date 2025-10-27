@@ -77,10 +77,10 @@ export default function Contact() {
   }
 
   return (
-    <section className="container-narrow my-16">
+    <section className="container-narrow my-21">
       {/* Fejléc + jobb oldalt cím/telefon, mint a figmán */}
       <div className="flex items-end justify-between gap-6 mb-6">
-        <h2 className="text-3xl md:text-4xl font-serif tracking-tight">
+        <h2 className="text-3xl font-bold font-serif tracking-tight">
           Kapcsolat &amp; Megközelítés
         </h2>
         <div className="text-sm text-[color:var(--muted,#5b534a)]">

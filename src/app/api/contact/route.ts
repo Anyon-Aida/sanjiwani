@@ -13,6 +13,7 @@ export async function POST(req: Request) {
 
   const apiKey = process.env.RESEND_API_KEY;
   const owner = process.env.OWNER_EMAIL;
+  const fromAddr = process.env.RESEND_FROM || "onboarding@resend.dev";
 
   // ha nincs beállítva e-mail küldés, akkor is válaszolunk OK-val (ne akadjon meg a folyamat)
   if (!apiKey || !owner) {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
 
     // Tulaj értesítése
     await resend.emails.send({
-      from: "Kapcsolat <noreply@your-verified-domain>",
+      from: fromAddr,
       to: owner,
       subject: "Új üzenet a kapcsolat űrlapról",
       replyTo: email,
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
 
     // (opció) automata válasz a feladónak – csak ha van verified domain/teszt mód oké
     await resend.emails.send({
-      from: "Sanjiwani <noreply@your-verified-domain>",
+      from: fromAddr,
       to: email,
       subject: "Üzeneted megérkezett",
       text:
