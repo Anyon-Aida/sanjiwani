@@ -134,10 +134,13 @@ export default function Contact() {
         <button
             type="submit"
             disabled={sending}
-            className="relative inline-flex h-[45px] w-[110px] items-center justify-center text-[15px] font-light text-white bg-[#9c7a58] border border-[#b9a18d]
-            before:absolute before:inset-[-6px] before:border before:border-[#9c7a58] before:content-[''] before:pointer-events-none before:bg-[#f6f2ed]
-            hover:brightness-[1.05] active:translate-y-[1px] disabled:opacity-60 disabled:cursor-not-allowed transition-all">
-
+            className="relative inline-flex h-[45px] w-full md:w-[110px] items-center justify-center text-[15px] font-light
+                    text-white bg-[#9c7a58] border border-[#b9a18d]
+                    before:absolute before:inset-[-3px] before:border before:border-[#9c7a58]
+                    before:content-[''] before:pointer-events-none
+                    hover:brightness-[1.05] active:translate-y-[1px]
+                    disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+        >
             {sending ? "Küldés…" : "Send"}
         </button>
         </div>
