@@ -2,21 +2,22 @@ import { redis } from "@/lib/redis";
 
 export const CATALOG_KEY = "catalog:v1";
 
-export type Catalog = {
-  categories: {
-    id: string;          // pl. "oily", "warm"…
-    name: string;        // pl. "Olajos masszázsok"
-    order?: number;
-    services: {
-      id: string;        // pl. "oily-bali"
-      name: string;
-      description?: string | null;
-      image?: string | null; // opcionális – ha nincs, a Services saját fallbackje
-      order?: number;
-      variants: { durationMin: number; priceHUF: number }[];
-    }[];
-  }[];
-  faq: { order?: number; q: string; a: string }[];
+// src/lib/catalog.ts
+export type Variant = { durationMin: number; priceHUF: number };
+export type Service = { id: string; name: string; image?: string; variants: Variant[] };
+export type Category = { id: string; name: string; order: number; services: Service[] };
+export type Catalog = { categories: Category[]; faq: { q: string; a: string }[] };
+
+// ha még nincs, exportáld a fallbacket is
+export const FALLBACK_CATALOG: Catalog = {
+  categories: [
+    { id: "cat-oil",   name: "Olajos",         order: 1, services: [] },
+    { id: "cat-warm",  name: "Meleg / herbál", order: 2, services: [] },
+    { id: "cat-seg",   name: "Szegmentált",    order: 3, services: [] },
+    { id: "cat-dry",   name: "Száraz (thai)",  order: 4, services: [] },
+    { id: "cat-scrub", name: "Scrub / testradír", order: 5, services: [] },
+  ],
+  faq: [],
 };
 
 const DEFAULT_CATALOG: Catalog = { categories: [], faq: [] };

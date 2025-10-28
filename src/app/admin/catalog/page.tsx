@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Catalog, Category, Service, Variant } from "@/app/api/admin/catalog/route";
+import type { Catalog, Category, Service, Variant } from "@/lib/catalog";
 
 const PRESET = [30, 45, 60, 90, 120, 180] as const;
 
