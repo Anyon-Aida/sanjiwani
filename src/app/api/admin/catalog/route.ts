@@ -1,8 +1,7 @@
 // src/app/api/admin/catalog/route.ts
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis"; // ugyanaz a Redis kliens, amit eddig is használtál
-
-const KEY = "catalog:json";
+import { CATALOG_KEY } from "@/lib/catalog";
 
 export type Variant = { durationMin: number; priceHUF: number };
 export type Service = { id: string; name: string; image?: string; variants: Variant[] };
@@ -21,7 +20,7 @@ function isCatalog(x: unknown): x is Catalog {
 
 export async function GET() {
   // 1) próbáljuk Redis-ből
-  const fromKv = await redis.get<string>(KEY);
+  const fromKv = await redis.get<string>(CATALOG_KEY);
   if (fromKv) {
     try {
       const parsed = JSON.parse(fromKv) as Catalog;
@@ -66,7 +65,7 @@ export async function POST(req: Request) {
       }
     }
 
-    await redis.set(KEY, JSON.stringify(body.catalog));
+    await redis.set(CATALOG_KEY, JSON.stringify(body.catalog));
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ ok: false, message: "Szerver hiba." }, { status: 500 });
