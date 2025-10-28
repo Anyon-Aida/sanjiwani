@@ -42,6 +42,7 @@ export default function AdminCatalogPage() {
   // JSON “haladó” mód mutatás
   const [showJson, setShowJson] = useState(false);
   const [jsonText, setJsonText] = useState("");
+  
 
   useEffect(() => {
     (async () => {
@@ -102,6 +103,11 @@ export default function AdminCatalogPage() {
     () => (selectedCat ? selectedCat.services[svcIdx] : undefined),
     [selectedCat, svcIdx]
   );
+
+  const selectedSvcCatIdx = useMemo(() => {
+  if (!data || !selectedSvc) return -1;
+  return findCategoryIndexOfService(selectedSvc.id);
+}, [data, selectedSvc?.id]);
 
   /* ======= Műveletek ======= */
 
@@ -178,6 +184,44 @@ export default function AdminCatalogPage() {
     setData(copy);
     setSvcIdx(to);
   };
+  
+  /** Megadja, melyik kategóriában van a szolgáltatás (index), vagy -1 ha nincs meg. */
+    function findCategoryIndexOfService(serviceId: string): number {
+    if (!data) return -1;
+    return data.categories.findIndex((cat) =>
+        cat.services.some((s) => s.id === serviceId)
+    );
+    }
+
+    /** Áthelyezi a szolgáltatást egy másik kategóriába (kategória ID alapján). */
+    function moveServiceToCategory(serviceId: string, nextCatId: string) {
+    if (!data) return;
+
+    const fromCatIdx = findCategoryIndexOfService(serviceId);
+    if (fromCatIdx < 0) return;
+
+    const toCatIdx = data.categories.findIndex((c) => c.id === nextCatId);
+    if (toCatIdx < 0 || toCatIdx === fromCatIdx) return;
+
+    const copy = structuredClone(data);
+
+    // kivágjuk a forrás kategóriából
+    const fromCat = copy.categories[fromCatIdx];
+    const svcIndex = fromCat.services.findIndex((s) => s.id === serviceId);
+    if (svcIndex < 0) return;
+
+    const [svc] = fromCat.services.splice(svcIndex, 1);
+
+    // betesszük a cél kategóriába a végére
+    copy.categories[toCatIdx].services.push(svc);
+
+    // UI állapot frissítés
+    setData(copy);
+    setCatIdx(toCatIdx);
+    setSvcIdx(copy.categories[toCatIdx].services.length - 1);
+    }
+
+
 
   const upsertVariant = (dur: number, price: number) => {
     if (!selectedSvc || !data) return;
@@ -453,6 +497,28 @@ export default function AdminCatalogPage() {
         </div>
 
         {/* Részletek / árak */}
+        {selectedSvc && (
+        <div>
+            <label className="block text-[12px] text-[var(--color-muted)]">Kategória</label>
+            <select
+            value={
+                selectedSvcCatIdx >= 0
+                ? data.categories[selectedSvcCatIdx].id
+                : data.categories[catIdx].id
+            }
+            onChange={(e) => moveServiceToCategory(selectedSvc.id, e.target.value)}
+            className="w-full h-[40px] rounded-md border px-3 text-[14px]"
+            style={{ borderColor: "var(--color-line)" }}
+            >
+            {data.categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                {c.name}
+                </option>
+            ))}
+            </select>
+        </div>
+        )}
+
         <div className="rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
           <h3 className="font-semibold mb-2">Részletek</h3>
           {!selectedSvc ? (
