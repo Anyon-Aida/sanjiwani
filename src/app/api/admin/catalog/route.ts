@@ -9,6 +9,17 @@ export type Category = { id: string; name: string; order: number; services: Serv
 export type FAQ = { q: string; a: string };
 export type Catalog = { categories: Category[]; faq: FAQ[] };
 
+const FALLBACK: Catalog = {
+  categories: [
+    { id: "cat-oil",   name: "Olajos",         order: 1, services: [] },
+    { id: "cat-warm",  name: "Meleg / herbál", order: 2, services: [] },
+    { id: "cat-seg",   name: "Szegmentált",    order: 3, services: [] },
+    { id: "cat-dry",   name: "Száraz (thai)",  order: 4, services: [] },
+    { id: "cat-scrub", name: "Scrub / testradír", order: 5, services: [] },
+  ],
+  faq: [],
+};
+
 function isCatalog(x: unknown): x is Catalog {
   try {
     const c = x as Catalog;
@@ -19,29 +30,24 @@ function isCatalog(x: unknown): x is Catalog {
 }
 
 export async function GET() {
-  // 1) próbáljuk Redis-ből
-  const fromKv = await redis.get<string>(CATALOG_KEY);
-  if (fromKv) {
+  // 1) próbáljuk a KV-t
+  const raw = await redis.get<string>(CATALOG_KEY);
+
+  if (typeof raw === "string" && raw.trim() !== "") {
     try {
-      const parsed = JSON.parse(fromKv) as Catalog;
-      return NextResponse.json({ ok: true, catalog: parsed });
-    } catch {
-      // ha rossz a KV tartalom, dobjunk defaultot
+      const parsed = JSON.parse(raw) as Catalog;
+      return NextResponse.json({ ok: true, catalog: parsed, source: "kv" });
+    } catch (e) {
+      // rossz formátum a KV-ban
+      return NextResponse.json(
+        { ok: false, error: "BAD_JSON_IN_KV", source: "kv" },
+        { status: 500 }
+      );
     }
   }
 
-  // 2) üres default (első induláskor)
-  const fallback: Catalog = {
-    categories: [
-      { id: "cat-oil", name: "Olajos", order: 1, services: [] },
-      { id: "cat-warm", name: "Meleg / herbál", order: 2, services: [] },
-      { id: "cat-seg", name: "Szegmentált", order: 3, services: [] },
-      { id: "cat-dry", name: "Száraz (thai)", order: 4, services: [] },
-      { id: "cat-scrub", name: "Scrub / testradír", order: 5, services: [] },
-    ],
-    faq: [],
-  };
-  return NextResponse.json({ ok: true, catalog: fallback });
+  // 2) ha nincs a KV-ban, adjunk fallbacket
+  return NextResponse.json({ ok: true, catalog: FALLBACK, source: "fallback" });
 }
 
 export async function POST(req: Request) {
