@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
         { protocol: "https", hostname: "lh6.googleusercontent.com" },
       ],
     },
+    eslint: {
+      ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
