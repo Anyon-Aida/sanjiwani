@@ -1,603 +1,344 @@
+// src/app/admin/catalog/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { Catalog, Category, Service, Variant } from "@/app/api/admin/catalog/route";
 
-/* ===== Típusok – maradjon kompatibilis a jelenlegi API-val ===== */
+const PRESET = [30, 45, 60, 90, 120, 180] as const;
 
-type Variant = { durationMin: number; priceHUF: number };
-type Service = { id: string; name: string; image?: string; variants: Variant[] };
-type Category = { id: string; name: string; order: number; services: Service[] };
-type Catalog = { categories: Category[]; faq: { q: string; a: string }[] };
-
-/* ===== Kisegítők ===== */
-
-const PRESET_DURS = [30, 45, 60, 90, 120, 180];
-const HUF = (v: number) =>
-  new Intl.NumberFormat("hu-HU", {
-    style: "currency",
-    currency: "HUF",
-    maximumFractionDigits: 0,
-  }).format(v);
+const money = (v: number) =>
+  new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 }).format(v);
 
 const slugify = (t: string) =>
-  t
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
-    .replace(/(^-|-$)/g, "");
+  t.toLowerCase().trim().replace(/[^\p{Letter}\p{Number}]+/gu, "-").replace(/(^-|-$)/g, "");
 
-/* =====  UI  ===== */
-
-export default function AdminCatalogPage() {
+export default function AdminCatalog() {
   const [data, setData] = useState<Catalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // kiválasztott elem
-  const [catIdx, setCatIdx] = useState<number>(0);
-  const [svcIdx, setSvcIdx] = useState<number>(0);
+  const [catIdx, setCatIdx] = useState(0);
+  const [svcIdx, setSvcIdx] = useState(0);
 
-  // JSON “haladó” mód mutatás
-  const [showJson, setShowJson] = useState(false);
-  const [jsonText, setJsonText] = useState("");
-  
-
+  // GET
   useEffect(() => {
     (async () => {
       setLoading(true);
-      setErr(null);
-        try {
-        const res = await fetch("/api/admin/catalog", { cache: "no-store" });
-        const j = await res.json();
-
-        // --- TOLERÁNS PARSER: több válaszformátumot elfogad ---
-        let catalog: Catalog | null = null;
-
-        // 1) Ha a válasz közvetlenül a katalógus (nincs ok)
-        if (j && j.categories && Array.isArray(j.categories)) {
-            catalog = j as Catalog;
-        }
-
-        // 2) Ha { ok, catalog } sémában jön
-        if (!catalog && j?.ok && j?.catalog) {
-            catalog = j.catalog as Catalog;
-        }
-
-        // 3) Ha { ok, doc } vagy { ok, data } sémában jön
-        if (!catalog && j?.ok && (j.doc || j.data)) {
-            catalog = (j.doc || j.data) as Catalog;
-        }
-
-        // 4) Ha { ok, text } és string az adat
-        if (!catalog && j?.ok && typeof j?.text === "string") {
-            try { catalog = JSON.parse(j.text) as Catalog; } catch {}
-        }
-
-        // 5) Végső esély: ha van body string mező
-        if (!catalog && typeof j?.body === "string") {
-            try { catalog = JSON.parse(j.body) as Catalog; } catch {}
-        }
-
-        if (!catalog) {
-            throw new Error("A katalógus adatait nem sikerült kinyerni az API válaszából.");
-        }
-
-        setData(catalog);
-        setJsonText(JSON.stringify(catalog, null, 2));
-        } catch (e: any) {
-        setErr(e?.message || "Ismeretlen hiba.");
-        } finally {
+      setError(null);
+      try {
+        const r = await fetch("/api/admin/catalog", { cache: "no-store" });
+        const j: { ok: boolean; catalog?: Catalog } = await r.json();
+        if (!j.ok || !j.catalog) throw new Error("Nem sikerült betölteni a katalógust.");
+        setData(j.catalog);
+        setCatIdx(0);
+        setSvcIdx(0);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
         setLoading(false);
-        }
+      }
     })();
   }, []);
 
-  // kiválasztott mutatók “safe”
-  const selectedCat = useMemo(
-    () => (data ? data.categories[catIdx] : undefined),
-    [data, catIdx]
-  );
-  const selectedSvc = useMemo(
-    () => (selectedCat ? selectedCat.services[svcIdx] : undefined),
-    [selectedCat, svcIdx]
-  );
+  const selectedCat = useMemo<Category | undefined>(() => data?.categories[catIdx], [data, catIdx]);
+  const selectedSvc = useMemo<Service | undefined>(() => selectedCat?.services[svcIdx], [selectedCat, svcIdx]);
 
-  const selectedSvcCatIdx = useMemo(() => {
-  if (!data || !selectedSvc) return -1;
-  return findCategoryIndexOfService(selectedSvc.id);
-}, [data, selectedSvc?.id]);
-
-  /* ======= Műveletek ======= */
-
-  const addCategory = () => {
+  // ======== UI műveletek
+  const addCat = () => {
     if (!data) return;
     const copy = structuredClone(data);
-    const order = Math.max(0, ...copy.categories.map((c) => c.order)) + 1;
-    copy.categories.push({
-      id: `cat-${Date.now()}`,
-      name: "Új kategória",
-      order,
-      services: [],
-    });
+    const nextOrder = (copy.categories.at(-1)?.order ?? 0) + 1;
+    copy.categories.push({ id: `cat-${Date.now()}`, name: "Új kategória", order: nextOrder, services: [] });
     setData(copy);
     setCatIdx(copy.categories.length - 1);
     setSvcIdx(0);
   };
 
-  const delCategory = (index: number) => {
+  const delCat = (i: number) => {
     if (!data) return;
     const copy = structuredClone(data);
-    copy.categories.splice(index, 1);
+    copy.categories.splice(i, 1);
     setData(copy);
     setCatIdx(0);
     setSvcIdx(0);
   };
 
-  const moveCategory = (index: number, dir: -1 | 1) => {
+  const moveCat = (i: number, d: -1 | 1) => {
     if (!data) return;
     const copy = structuredClone(data);
-    const to = index + dir;
+    const to = i + d;
     if (to < 0 || to >= copy.categories.length) return;
-    const tmp = copy.categories[index];
-    copy.categories[index] = copy.categories[to];
-    copy.categories[to] = tmp;
-    // korrigáljuk az order-t szépen 1..n
-    copy.categories = copy.categories.map((c, i) => ({ ...c, order: i + 1 }));
+    [copy.categories[i], copy.categories[to]] = [copy.categories[to], copy.categories[i]];
+    // order normalizálás
+    copy.categories.forEach((c, idx) => (c.order = idx + 1));
     setData(copy);
     setCatIdx(to);
   };
 
-  const addService = () => {
-    if (!selectedCat || !data) return;
+  const addSvc = () => {
+    if (!data || !selectedCat) return;
     const copy = structuredClone(data);
     const cat = copy.categories[catIdx];
-    cat.services.push({
-      id: `svc-${Date.now()}`,
-      name: "Új szolgáltatás",
-      image: "",
-      variants: [],
-    });
+    cat.services.push({ id: `svc-${Date.now()}`, name: "Új szolgáltatás", image: "", variants: [] });
     setData(copy);
     setSvcIdx(cat.services.length - 1);
   };
 
-  const delService = (index: number) => {
-    if (!selectedCat || !data) return;
+  const delSvc = (i: number) => {
+    if (!data || !selectedCat) return;
     const copy = structuredClone(data);
     const cat = copy.categories[catIdx];
-    cat.services.splice(index, 1);
+    cat.services.splice(i, 1);
     setData(copy);
     setSvcIdx(0);
   };
 
-  const moveService = (index: number, dir: -1 | 1) => {
-    if (!selectedCat || !data) return;
+  const moveSvc = (i: number, d: -1 | 1) => {
+    if (!data || !selectedCat) return;
     const copy = structuredClone(data);
     const cat = copy.categories[catIdx];
-    const to = index + dir;
+    const to = i + d;
     if (to < 0 || to >= cat.services.length) return;
-    const tmp = cat.services[index];
-    cat.services[index] = cat.services[to];
-    cat.services[to] = tmp;
+    [cat.services[i], cat.services[to]] = [cat.services[to], cat.services[i]];
     setData(copy);
     setSvcIdx(to);
   };
-  
-  /** Megadja, melyik kategóriában van a szolgáltatás (index), vagy -1 ha nincs meg. */
-    function findCategoryIndexOfService(serviceId: string): number {
-    if (!data) return -1;
-    return data.categories.findIndex((cat) =>
-        cat.services.some((s) => s.id === serviceId)
-    );
-    }
 
-    /** Áthelyezi a szolgáltatást egy másik kategóriába (kategória ID alapján). */
-    function moveServiceToCategory(serviceId: string, nextCatId: string) {
+  const changeSvcCategory = (serviceId: string, nextCatId: string) => {
     if (!data) return;
-
-    const fromCatIdx = findCategoryIndexOfService(serviceId);
-    if (fromCatIdx < 0) return;
-
-    const toCatIdx = data.categories.findIndex((c) => c.id === nextCatId);
-    if (toCatIdx < 0 || toCatIdx === fromCatIdx) return;
-
     const copy = structuredClone(data);
 
-    // kivágjuk a forrás kategóriából
-    const fromCat = copy.categories[fromCatIdx];
+    const fromIdx = copy.categories.findIndex((c) => c.services.some((s) => s.id === serviceId));
+    if (fromIdx < 0) return;
+    const toIdx = copy.categories.findIndex((c) => c.id === nextCatId);
+    if (toIdx < 0 || toIdx === fromIdx) return;
+
+    const fromCat = copy.categories[fromIdx];
     const svcIndex = fromCat.services.findIndex((s) => s.id === serviceId);
-    if (svcIndex < 0) return;
-
     const [svc] = fromCat.services.splice(svcIndex, 1);
+    copy.categories[toIdx].services.push(svc);
 
-    // betesszük a cél kategóriába a végére
-    copy.categories[toCatIdx].services.push(svc);
-
-    // UI állapot frissítés
     setData(copy);
-    setCatIdx(toCatIdx);
-    setSvcIdx(copy.categories[toCatIdx].services.length - 1);
-    }
-
-
+    setCatIdx(toIdx);
+    setSvcIdx(copy.categories[toIdx].services.length - 1);
+  };
 
   const upsertVariant = (dur: number, price: number) => {
-    if (!selectedSvc || !data) return;
+    if (!data || !selectedSvc) return;
     const copy = structuredClone(data);
     const svc = copy.categories[catIdx].services[svcIdx];
     const hit = svc.variants.find((v) => v.durationMin === dur);
     if (hit) hit.priceHUF = price;
     else svc.variants.push({ durationMin: dur, priceHUF: price });
-    // rendezzük idő szerint
     svc.variants.sort((a, b) => a.durationMin - b.durationMin);
     setData(copy);
   };
 
   const delVariant = (dur: number) => {
-    if (!selectedSvc || !data) return;
+    if (!data || !selectedSvc) return;
     const copy = structuredClone(data);
     const svc = copy.categories[catIdx].services[svcIdx];
     svc.variants = svc.variants.filter((v) => v.durationMin !== dur);
     setData(copy);
   };
 
+  // ======== SAVE
   const save = async () => {
     if (!data) return;
     setSaving(true);
-    setErr(null);
-    setMsg(null);
+    setError(null);
+    setToast(null);
     try {
-      // minimális validáció
+      // egyszerű kliens validáció
       for (const c of data.categories) {
-        if (!c.name.trim()) throw new Error("Van üres kategórianév.");
+        if (!c.name.trim()) throw new Error("Üres kategórianév található.");
         for (const s of c.services) {
-          if (!s.name.trim()) throw new Error("Van üres szolgáltatásnév.");
+          if (!s.name.trim()) throw new Error("Üres szolgáltatásnév található.");
           const seen = new Set<number>();
           for (const v of s.variants) {
-            if (seen.has(v.durationMin))
-              throw new Error(
-                `"${s.name}" azonos percérték duplán szerepel (${v.durationMin}).`
-              );
+            if (seen.has(v.durationMin)) {
+              throw new Error(`A(z) "${s.name}" azonos percértéket kétszer tartalmaz (${v.durationMin}).`);
+            }
             seen.add(v.durationMin);
           }
         }
       }
 
-      const res = await fetch("/api/admin/catalog", {
+      const r = await fetch("/api/admin/catalog", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ catalog: data }),
       });
-      const j = await res.json();
+      const j: { ok: boolean; message?: string } = await r.json();
       if (!j.ok) throw new Error(j.message || "Mentési hiba.");
-      setMsg("Elmentve.");
-    } catch (e: any) {
-      setErr(e?.message || "Ismeretlen hiba.");
+      setToast("Elmentve.");
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setSaving(false);
+      setTimeout(() => setToast(null), 2500);
     }
   };
 
-  const applyJson = () => {
-    try {
-      const parsed = JSON.parse(jsonText) as Catalog;
-      setData(parsed);
-      setMsg("JSON betöltve a szerkesztőbe (mentés még nem történt).");
-      setErr(null);
-    } catch {
-      setErr("Érvénytelen JSON.");
-    }
-  };
-
-  /* ======= Render ======= */
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-[1120px] px-4 py-10 text-[15px]">
-        Betöltés…
-      </div>
-    );
-  }
-  if (err && !data) {
-    return (
-      <div className="mx-auto max-w-[1120px] px-4 py-10 text-[15px] text-red-700">
-        {err}
-      </div>
-    );
-  }
-  if (!data) {
-    return (
-        <div className="mx-auto max-w-[1120px] px-4 py-10 text-[15px] text-red-700">
-        Nem sikerült megjeleníteni a katalógust (nincs adat). Próbáld frissíteni az oldalt,
-        vagy ellenőrizd az API választ a /api/admin/catalog végponton.
-        </div>
-    );
-  }
+  // ======== RENDER
+  if (loading) return <Shell>Betöltés…</Shell>;
+  if (error && !data) return <Shell error={error} />;
 
   return (
-    <div className="mx-auto max-w-[1120px] px-4 md:px-6 py-6">
-      <h1 className="font-heading text-[28px] md:text-[36px] mb-2">
-        Katalógus (árak / szolgáltatások)
-      </h1>
-      <p className="text-[13.5px] text-[var(--color-muted)] mb-4">
-        Válaszd ki balra a <b>kategóriát</b>, középen a <b>szolgáltatást</b>,
-        jobbra pedig szerkesztheted a részleteket és az árakat.
-      </p>
-
-      {/* Haladó / JSON */}
-      <details className="mb-5">
-        <summary
-          className="cursor-pointer select-none text-[14px] font-semibold"
-          onClick={() => setShowJson((v) => !v)}
+    <Shell toast={toast} error={error}>
+      {/* Fejléc */}
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Katalógus szerkesztő</h1>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="rounded-lg bg-black/90 px-4 py-2 text-white shadow hover:bg-black disabled:opacity-50"
         >
-          Haladó · JSON import/export
-        </summary>
-        {showJson && (
-          <div className="mt-3 grid md:grid-cols-2 gap-3">
-            <textarea
-              value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-              rows={18}
-              className="w-full rounded-lg border p-3 font-mono text-[13px]"
-              style={{ borderColor: "var(--color-line)" }}
-            />
-            <div className="space-y-2">
-              <div className="text-[13px] text-[var(--color-muted)]">
-                Ez csak a szerkesztőbe tölti be a JSON-t. <b>Menteni</b> alul tudsz.
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="rounded-md border px-3 py-2"
-                  onClick={applyJson}
-                >
-                  Betöltés a szerkesztőbe
-                </button>
-                <button
-                  className="rounded-md border px-3 py-2"
-                  onClick={() =>
-                    setJsonText(JSON.stringify(data, null, 2))
-                  }
-                >
-                  Frissít (aktuális állapot)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </details>
+          {saving ? "Mentés…" : "Mentés"}
+        </button>
+      </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {/* Kategóriák */}
-        <div className="rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold">Kategóriák</h3>
-            <button className="rounded-md border px-2 py-1" onClick={addCategory}>
-              + Új
-            </button>
-          </div>
+      {/* 3 oszlop */}
+      <div className="grid gap-4 md:grid-cols-[280px_1fr_1.1fr]">
+        {/* KATEGÓRIÁK */}
+        <Panel title="Kategóriák" actionLabel="+ Új" onAction={addCat}>
           <ul className="space-y-1">
-            {data.categories.map((c, i) => (
-              <li
-                key={c.id}
-                className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 ${
-                  i === catIdx ? "bg-[var(--color-bg)]" : ""
-                }`}
-              >
-                <button
-                  className="text-left flex-1"
-                  onClick={() => {
-                    setCatIdx(i);
-                    setSvcIdx(0);
-                  }}
-                >
+            {data!.categories.map((c, i) => (
+              <li key={c.id} className={`flex items-center justify-between rounded-lg px-2 py-1 ${i === catIdx ? "bg-zinc-100" : ""}`}>
+                <button className="flex-1 text-left" onClick={() => { setCatIdx(i); setSvcIdx(0); }}>
                   {c.name}
                 </button>
                 <div className="flex items-center gap-1">
-                  <button
-                    className="rounded border px-2 py-0.5"
-                    onClick={() => moveCategory(i, -1)}
-                    title="Fel"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    className="rounded border px-2 py-0.5"
-                    onClick={() => moveCategory(i, 1)}
-                    title="Le"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    className="rounded border px-2 py-0.5"
-                    onClick={() => delCategory(i)}
-                    title="Törlés"
-                  >
-                    ✕
-                  </button>
+                  <IconBtn label="Fel" onClick={() => moveCat(i, -1)}>↑</IconBtn>
+                  <IconBtn label="Le"  onClick={() => moveCat(i, 1)}>↓</IconBtn>
+                  <IconBtn label="Törlés" onClick={() => delCat(i)}>✕</IconBtn>
                 </div>
               </li>
             ))}
           </ul>
+
           {selectedCat && (
-            <div className="mt-3 space-y-2">
-              <label className="block text-[12px] text-[var(--color-muted)]">
-                Kategória neve
-              </label>
+            <div className="mt-3 space-y-1">
+              <Label text="Kategória neve" />
               <input
                 value={selectedCat.name}
                 onChange={(e) => {
-                  const copy = structuredClone(data);
+                  const copy = structuredClone(data!);
                   copy.categories[catIdx].name = e.target.value;
                   setData(copy);
                 }}
-                className="w-full rounded-md border px-3 py-2"
-                style={{ borderColor: "var(--color-line)" }}
+                className="w-full rounded-lg border px-3 py-2"
               />
             </div>
           )}
-        </div>
+        </Panel>
 
-        {/* Szolgáltatások */}
-        <div className="rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold">Szolgáltatások</h3>
-            <button className="rounded-md border px-2 py-1" onClick={addService}>
-              + Új
-            </button>
-          </div>
+        {/* SZOLGÁLTATÁSOK */}
+        <Panel title="Szolgáltatások" actionLabel="+ Új" onAction={addSvc}>
           {!selectedCat ? (
-            <div className="text-[13px] text-[var(--color-muted)]">
-              Válassz kategóriát.
-            </div>
+            <Muted>Válassz kategóriát.</Muted>
           ) : selectedCat.services.length === 0 ? (
-            <div className="text-[13px] text-[var(--color-muted)]">
-              Még nincs szolgáltatás ebben a kategóriában.
-            </div>
+            <Muted>Még nincs szolgáltatás ebben a kategóriában.</Muted>
           ) : (
             <ul className="space-y-1">
               {selectedCat.services.map((s, i) => (
-                <li
-                  key={s.id}
-                  className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 ${
-                    i === svcIdx ? "bg-[var(--color-bg)]" : ""
-                  }`}
-                >
-                  <button className="text-left flex-1" onClick={() => setSvcIdx(i)}>
+                <li key={s.id} className={`flex items-center justify-between rounded-lg px-2 py-1 ${i === svcIdx ? "bg-zinc-100" : ""}`}>
+                  <button className="flex-1 text-left" onClick={() => setSvcIdx(i)}>
                     {s.name}
                   </button>
                   <div className="flex items-center gap-1">
-                    <button
-                      className="rounded border px-2 py-0.5"
-                      onClick={() => moveService(i, -1)}
-                      title="Fel"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      className="rounded border px-2 py-0.5"
-                      onClick={() => moveService(i, 1)}
-                      title="Le"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      className="rounded border px-2 py-0.5"
-                      onClick={() => delService(i)}
-                      title="Törlés"
-                    >
-                      ✕
-                    </button>
+                    <IconBtn label="Fel" onClick={() => moveSvc(i, -1)}>↑</IconBtn>
+                    <IconBtn label="Le"  onClick={() => moveSvc(i, 1)}>↓</IconBtn>
+                    <IconBtn label="Törlés" onClick={() => delSvc(i)}>✕</IconBtn>
                   </div>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </Panel>
 
-        {/* Részletek / árak */}
-        <div className="rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
-          <h3 className="font-semibold mb-2">Részletek</h3>
+        {/* RÉSZLETEK */}
+        <Panel title="Részletek">
           {!selectedSvc ? (
-            <div className="text-[13px] text-[var(--color-muted)]">
-              Válassz szolgáltatást.
-            </div>
+            <Muted>Válassz szolgáltatást.</Muted>
           ) : (
             <div className="space-y-3">
+              {/* Kategória váltó */}
               <div>
-                <label className="block text-[12px] text-[var(--color-muted)]">
-                  Név
-                </label>
+                <Label text="Kategória" />
+                <select
+                  value={data!.categories[catIdx].id}
+                  onChange={(e) => changeSvcCategory(selectedSvc.id, e.target.value)}
+                  className="w-full h-[40px] rounded-lg border px-3"
+                >
+                  {data!.categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Név */}
+              <div>
+                <Label text="Név" />
                 <input
                   value={selectedSvc.name}
                   onChange={(e) => {
-                    const copy = structuredClone(data);
+                    const copy = structuredClone(data!);
                     copy.categories[catIdx].services[svcIdx].name = e.target.value;
                     setData(copy);
                   }}
-                  className="w-full rounded-md border px-3 py-2"
-                  style={{ borderColor: "var(--color-line)" }}
+                  className="w-full rounded-lg border px-3 py-2"
                 />
               </div>
 
-            {selectedSvc && (
-            <div>
-                <label className="block text-[12px] text-[var(--color-muted)]">Kategória</label>
-                <select
-                value={
-                    selectedSvcCatIdx >= 0
-                    ? data.categories[selectedSvcCatIdx].id
-                    : data.categories[catIdx].id
-                }
-                onChange={(e) => moveServiceToCategory(selectedSvc.id, e.target.value)}
-                className="w-full h-[40px] rounded-md border px-3 text-[14px]"
-                style={{ borderColor: "var(--color-line)" }}
-                >
-                {data.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                    {c.name}
-                    </option>
-                ))}
-                </select>
-            </div>
-            )}
-
-              <div className="grid grid-cols-2 gap-3">
+              {/* Slug + Kép */}
+              <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="block text-[12px] text-[var(--color-muted)]">
-                    Azonosító (slug)
-                  </label>
+                  <Label text="Azonosító (slug)" />
                   <input
                     value={selectedSvc.id}
                     onChange={(e) => {
-                      const copy = structuredClone(data);
+                      const copy = structuredClone(data!);
                       copy.categories[catIdx].services[svcIdx].id = e.target.value;
                       setData(copy);
                     }}
                     onBlur={() => {
                       if (!selectedSvc.id.trim()) {
-                        const copy = structuredClone(data);
-                        copy.categories[catIdx].services[svcIdx].id = slugify(
-                          selectedSvc.name || "svc"
-                        );
+                        const copy = structuredClone(data!);
+                        copy.categories[catIdx].services[svcIdx].id = slugify(selectedSvc.name || "svc");
                         setData(copy);
                       }
                     }}
-                    className="w-full rounded-md border px-3 py-2"
-                    style={{ borderColor: "var(--color-line)" }}
+                    className="w-full rounded-lg border px-3 py-2"
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] text-[var(--color-muted)]">
-                    Kép (opcionális)
-                  </label>
+                  <Label text="Kép (opcionális)" />
                   <input
                     value={selectedSvc.image ?? ""}
                     onChange={(e) => {
-                      const copy = structuredClone(data);
-                      copy.categories[catIdx].services[svcIdx].image =
-                        e.target.value;
+                      const copy = structuredClone(data!);
+                      copy.categories[catIdx].services[svcIdx].image = e.target.value;
                       setData(copy);
                     }}
                     placeholder="/services/traditional-thai.png"
-                    className="w-full rounded-md border px-3 py-2"
-                    style={{ borderColor: "var(--color-line)" }}
+                    className="w-full rounded-lg border px-3 py-2"
                   />
                 </div>
               </div>
 
+              {/* Árlista */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[12px] text-[var(--color-muted)]">
-                    Árlista (percek → Ft)
-                  </label>
+                <div className="mb-1 flex items-center justify-between">
+                  <Label text="Árlista (percek → Ft)" />
                   <div className="flex gap-1">
-                    {PRESET_DURS.map((d) => (
+                    {PRESET.map((d) => (
                       <button
                         key={d}
-                        className="rounded border px-2 py-0.5 text-[12px]"
                         onClick={() => upsertVariant(d, 0)}
+                        className="rounded border px-2 py-0.5 text-xs"
                         title={`${d} perc sor hozzáadása`}
                       >
                         + {d}p
@@ -606,74 +347,95 @@ export default function AdminCatalogPage() {
                   </div>
                 </div>
 
-                <table className="w-full text-[14px]">
-                  <thead>
-                    <tr className="text-left border-b" style={{ borderColor: "var(--color-line)" }}>
-                      <th className="py-1 pr-2">Perc</th>
-                      <th className="py-1 pr-2">Ár</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedSvc.variants.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="py-2 text-[13px] text-[var(--color-muted)]">
-                          Még nincs ár megadva ehhez a szolgáltatáshoz.
-                        </td>
+                {selectedSvc.variants.length === 0 ? (
+                  <Muted>Még nincs ár megadva ehhez a szolgáltatáshoz.</Muted>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-1 pr-2">Perc</th>
+                        <th className="py-1 pr-2">Ár</th>
+                        <th />
                       </tr>
-                    ) : (
-                      selectedSvc.variants.map((v) => (
-                        <tr key={v.durationMin} className="border-b last:border-none" style={{ borderColor: "var(--color-line)" }}>
+                    </thead>
+                    <tbody>
+                      {selectedSvc.variants.map((v: Variant) => (
+                        <tr key={v.durationMin} className="border-b last:border-none">
                           <td className="py-1 pr-2">{v.durationMin} p</td>
                           <td className="py-1 pr-2">
                             <input
                               type="number"
                               min={0}
                               value={v.priceHUF}
-                              onChange={(e) =>
-                                upsertVariant(
-                                  v.durationMin,
-                                  Number.parseInt(e.target.value || "0", 10)
-                                )
-                              }
-                              className="w-[140px] rounded-md border px-2 py-1"
-                              style={{ borderColor: "var(--color-line)" }}
+                              onChange={(e) => upsertVariant(v.durationMin, Number.parseInt(e.target.value || "0", 10))}
+                              className="w-40 rounded border px-2 py-1"
                             />
-                            <span className="ml-2 text-[12px] text-[var(--color-muted)]">
-                              {v.priceHUF ? HUF(v.priceHUF) : ""}
-                            </span>
+                            <span className="ml-2 text-xs text-zinc-500">{v.priceHUF ? money(v.priceHUF) : ""}</span>
                           </td>
                           <td className="py-1 text-right">
-                            <button
-                              className="rounded border px-2 py-0.5 text-[12px]"
-                              onClick={() => delVariant(v.durationMin)}
-                            >
+                            <button onClick={() => delVariant(v.durationMin)} className="rounded border px-2 py-0.5 text-xs">
                               Törlés
                             </button>
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}
-        </div>
+        </Panel>
       </div>
+    </Shell>
+  );
+}
 
-      {/* Mentés sáv */}
-      <div className="mt-5 flex items-center gap-3">
-        <button
-          className="rounded-md border px-4 py-2 font-semibold"
-          disabled={saving}
-          onClick={save}
-        >
-          {saving ? "Mentés…" : "Mentés"}
-        </button>
-        {msg && <div className="text-green-700 text-[14px]">{msg}</div>}
-        {err && <div className="text-red-700 text-[14px]">{err}</div>}
-      </div>
+/* ===== Kisegítő komponensek a letisztult UI-hoz ===== */
+
+function Shell(props: { children?: React.ReactNode; toast?: string | null; error?: string | null }) {
+  return (
+    <div className="mx-auto max-w-[1120px] px-4 py-6">
+      {props.toast && <div className="mb-3 rounded-lg bg-green-100 px-3 py-2 text-sm text-green-800">{props.toast}</div>}
+      {props.error && <div className="mb-3 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-800">{props.error}</div>}
+      {props.children}
     </div>
   );
+}
+
+function Panel(props: { title: string; children: React.ReactNode; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <div className="rounded-xl border bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="font-medium">{props.title}</h3>
+        {props.actionLabel && props.onAction && (
+          <button onClick={props.onAction} className="rounded-lg border px-2 py-1 text-sm hover:bg-zinc-50">
+            {props.actionLabel}
+          </button>
+        )}
+      </div>
+      {props.children}
+    </div>
+  );
+}
+
+function IconBtn(props: { children: React.ReactNode; onClick?: () => void; label: string }) {
+  return (
+    <button
+      aria-label={props.label}
+      title={props.label}
+      onClick={props.onClick}
+      className="rounded-lg border px-2 py-0.5 text-sm hover:bg-zinc-50"
+    >
+      {props.children}
+    </button>
+  );
+}
+
+function Label(props: { text: string }) {
+  return <div className="text-xs text-zinc-500">{props.text}</div>;
+}
+
+function Muted(props: { children: React.ReactNode }) {
+  return <div className="text-sm text-zinc-500">{props.children}</div>;
 }
