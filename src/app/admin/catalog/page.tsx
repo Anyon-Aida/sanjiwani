@@ -47,17 +47,49 @@ export default function AdminCatalogPage() {
     (async () => {
       setLoading(true);
       setErr(null);
-      try {
+        try {
         const res = await fetch("/api/admin/catalog", { cache: "no-store" });
-        const j = (await res.json()) as { ok: boolean; catalog: Catalog };
-        if (!j.ok) throw new Error("Nem sikerült betölteni a katalógust.");
-        setData(j.catalog);
-        setJsonText(JSON.stringify(j.catalog, null, 2));
-      } catch (e: any) {
+        const j = await res.json();
+
+        // --- TOLERÁNS PARSER: több válaszformátumot elfogad ---
+        let catalog: Catalog | null = null;
+
+        // 1) Ha a válasz közvetlenül a katalógus (nincs ok)
+        if (j && j.categories && Array.isArray(j.categories)) {
+            catalog = j as Catalog;
+        }
+
+        // 2) Ha { ok, catalog } sémában jön
+        if (!catalog && j?.ok && j?.catalog) {
+            catalog = j.catalog as Catalog;
+        }
+
+        // 3) Ha { ok, doc } vagy { ok, data } sémában jön
+        if (!catalog && j?.ok && (j.doc || j.data)) {
+            catalog = (j.doc || j.data) as Catalog;
+        }
+
+        // 4) Ha { ok, text } és string az adat
+        if (!catalog && j?.ok && typeof j?.text === "string") {
+            try { catalog = JSON.parse(j.text) as Catalog; } catch {}
+        }
+
+        // 5) Végső esély: ha van body string mező
+        if (!catalog && typeof j?.body === "string") {
+            try { catalog = JSON.parse(j.body) as Catalog; } catch {}
+        }
+
+        if (!catalog) {
+            throw new Error("A katalógus adatait nem sikerült kinyerni az API válaszából.");
+        }
+
+        setData(catalog);
+        setJsonText(JSON.stringify(catalog, null, 2));
+        } catch (e: any) {
         setErr(e?.message || "Ismeretlen hiba.");
-      } finally {
+        } finally {
         setLoading(false);
-      }
+        }
     })();
   }, []);
 
@@ -231,7 +263,14 @@ export default function AdminCatalogPage() {
       </div>
     );
   }
-  if (!data) return null;
+  if (!data) {
+    return (
+        <div className="mx-auto max-w-[1120px] px-4 py-10 text-[15px] text-red-700">
+        Nem sikerült megjeleníteni a katalógust (nincs adat). Próbáld frissíteni az oldalt,
+        vagy ellenőrizd az API választ a /api/admin/catalog végponton.
+        </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1120px] px-4 md:px-6 py-6">
