@@ -1,12 +1,14 @@
-import type { Catalog } from "./catalog";
+import { getCatalog } from "./catalog";
 
-// egy szolgáltatás variánsából ad vissza árat egy adott percért
-export function priceOf(
-  service: Catalog["categories"][number]["services"][number],
-  durationMin: number
-): number | null {
-  const v = service.variants.find(v => v.durationMin === durationMin);
-  return v ? v.priceHUF : null;
+export async function getPriceBy(serviceId: string, durationMin: number): Promise<number | null> {
+  const cat = await getCatalog();
+  for (const c of cat.categories) {
+    const s = c.services.find(x => x.id === serviceId);
+    if (!s) continue;
+    const v = s.variants.find(v => v.durationMin === durationMin);
+    return v ? v.priceHUF : null;
+  }
+  return null;
 }
 
 export function fmtHUF(v: number) {

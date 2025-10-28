@@ -3,10 +3,6 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import BookingDialog from "./BookingDialog";
-import type { Catalog } from "@/lib/catalog";
-import { priceOf, fmtHUF } from "@/lib/pricing";
-
-/* ====== adatok ====== */
 
 type Category =
   | "Mind"
@@ -23,66 +19,106 @@ type ServiceVM = {
   durations: number[];
   image: string;
   short?: string;
-  // árhoz az eredeti rekordot megőrizzük
-  _src: Catalog["categories"][number]["services"][number];
+  pricesByDuration: Record<number, number>;
 };
-
-const CATEGORIES: Category[] = [
-  "Mind",
-  "Olajos",
-  "Meleg / herbál",
-  "Szegmentált",
-  "Száraz (thai)",
-  "Scrub / testradír",
-];
 
 const DURATIONS = [30, 45, 60, 90, 120, 180] as const;
 
-/** --- KATALÓGUS BETÖLTÉS KV-BŐL --- */
-async function fetchServicesVM(): Promise<ServiceVM[]> {
-  const res = await fetch("/api/catalog", { cache: "no-store" });
-  if (!res.ok) return [];
-  const { data } = (await res.json()) as { ok: boolean; data: Catalog };
-  const svcs: ServiceVM[] = [];
+// ha egy szolgáltatásnál nincs image az adatbázisban, innen adunk “fallbacket”
+const IMAGE_FALLBACKS: Record<string, string> = {
+  "traditional-thai": "/services/traditional-thai.png",
+  "oily-bali": "/services/oily-bali.png",
+  "thai-foot": "/services/thai-foot.png",
+};
 
-  // a kategórianeveknek pontosan meg kell egyeznie a fenti CATEGORIES-szel
-  for (const cat of data.categories) {
-    // safety: csak ismert kategóriákat veszünk át
-    const catName = cat.name as Exclude<Category, "Mind">;
-    for (const s of cat.services) {
-      const durations = s.variants
-        .map(v => v.durationMin)
-        .filter((x, i, a) => a.indexOf(x) === i)
-        .sort((a, b) => a - b);
-
-      svcs.push({
-        id: s.id,
-        name: s.name,
-        category: catName,
-        durations,
-        image: s.image ?? "/services/placeholder.png",
-        short: s.short ?? undefined,
-        _src: s,
-      });
-    }
-  }
-  return svcs;
-}
-
-/* ====== komponens ====== */
+const CATEGORY_NAME_MAP: Record<string, Category> = {
+  oily: "Olajos",
+  warm: "Meleg / herbál",
+  segmented: "Szegmentált",
+  dry: "Száraz (thai)",
+  scrub: "Scrub / testradír",
+};
 
 export default function Services() {
-  const [services, setServices] = useState<ServiceVM[]>([]);
   const [cat, setCat] = useState<Category>("Mind");
   const [dur, setDur] = useState<number | "mind">("mind");
   const [q, setQ] = useState("");
+  const [booking, setBooking] =
+    useState<{ service: ServiceVM; duration: number } | null>(null);
 
+  const [allServices, setAllServices] = useState<ServiceVM[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([
+    "Mind",
+    "Olajos",
+    "Meleg / herbál",
+    "Szegmentált",
+    "Száraz (thai)",
+    "Scrub / testradír",
+  ]);
+
+  // ---- ADATOK KATALÓGUSBÓL ----
   useEffect(() => {
-    fetchServicesVM().then(setServices).catch(() => setServices([]));
+    (async () => {
+      try {
+        const r = await fetch("/api/catalog", { cache: "no-store" });
+        const j = await r.json();
+        const catData = j?.data as {
+          categories: {
+            id: string;
+            name: string;
+            order?: number;
+            services: {
+              id: string;
+              name: string;
+              image?: string | null;
+              order?: number;
+              variants: { durationMin: number; priceHUF: number }[];
+            }[];
+          }[];
+        };
+
+        // kategóriák (Mind + a katalógusban lévők, a mi elnevezésünkre mapelve)
+        const cats = [
+          "Mind" as const,
+          ...catData.categories
+            .map((c) => CATEGORY_NAME_MAP[c.id] ?? (c.name as Category))
+            .filter(Boolean),
+        ] as Category[];
+        setAllCategories(cats);
+
+        // szolgáltatások nézetmodellje
+        const list: ServiceVM[] = [];
+        for (const c of catData.categories) {
+          const mappedCat = CATEGORY_NAME_MAP[c.id] ?? (c.name as Category);
+          if (!mappedCat || mappedCat === "Mind") continue;
+
+          for (const s of c.services) {
+            const prices: Record<number, number> = {};
+            const durs: number[] = [];
+            for (const v of s.variants) {
+              durs.push(v.durationMin);
+              prices[v.durationMin] = v.priceHUF;
+            }
+            list.push({
+              id: s.id,
+              name: s.name,
+              category: mappedCat,
+              durations: durs.sort((a, b) => a - b),
+              image: s.image ?? IMAGE_FALLBACKS[s.id] ?? "/services/placeholder.png",
+              pricesByDuration: prices,
+            });
+          }
+        }
+        setAllServices(list);
+      } catch {
+        // ha valamiért nem jön a katalógus, a lista marad üres – a UI marad stabil
+        setAllServices([]);
+      }
+    })();
   }, []);
 
   const filtered = useMemo(() => {
-    return services.filter((s) => {
+    return allServices.filter((s) => {
       const byCat = cat === "Mind" ? true : s.category === cat;
       const byDur = dur === "mind" ? true : s.durations.includes(dur);
       const byQ =
@@ -94,29 +130,26 @@ export default function Services() {
               .includes(q.toLowerCase());
       return byCat && byDur && byQ;
     });
-  }, [services, cat, dur, q]);
-
-  const [booking, setBooking] =
-    useState<{ service: ServiceVM; duration: number } | null>(null);
+  }, [cat, dur, q, allServices]);
 
   return (
     <section id="services" className="py-8 md:py-16">
       <div className="mx-auto px-4 md:px-6" style={{ maxWidth: "1120px" }}>
-        {/* --- a te UI-d innen VÁLTOZATLAN --- */}
         {/* fejléc */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-6">
           <h2 className="font-heading text-[32px] md:text-[40px] leading-tight">
             Szolgáltatások
           </h2>
           <div className="text-[13px] md:text-base text-[var(--color-muted)]">
-            {services.length} kezelés – szűrés kategória és időtartam szerint
+            Válassz kategóriát és időtartamot
           </div>
         </div>
 
         {/* szűrők */}
         <div className="mt-5 space-y-3 md:space-y-0 md:grid md:gap-4 md:items-center md:grid-cols-1">
+          {/* kategóriák */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 lg:flex lg:flex-wrap">
-            {CATEGORIES.map((c) => (
+            {allCategories.map((c) => (
               <button
                 key={c}
                 onClick={() => setCat(c)}
@@ -133,6 +166,7 @@ export default function Services() {
             ))}
           </div>
 
+          {/* időtartam + kereső */}
           <div className="space-y-2 md:space-y-0 md:flex md:flex-wrap md:gap-2 justify-end md:justify-start">
             <span
               className="inline-flex items-center px-4 py-2 rounded-full border bg-white text-[14px] lg:text-[15px]"
@@ -173,7 +207,7 @@ export default function Services() {
           </div>
         </div>
 
-        {/* kártyák */}
+        {/* kártyák — DIZÁJN VÁLTOZATLAN */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
           {filtered.map((s) => (
             <article
@@ -202,33 +236,22 @@ export default function Services() {
                   <div>Kategória: {s.category.toLowerCase()}</div>
                   <div>{s.durations.join("/")}&nbsp;min</div>
                 </div>
-
                 <button
-                  onClick={() => {
-                    const defDur = s.durations[0];
-                    setBooking({ service: s, duration: defDur });
-                  }}
+                  onClick={() =>
+                    setBooking({ service: s, duration: s.durations[0] })
+                  }
                   className="rounded-full self-center font-bold px-5 py-2 text-white shadow-spa active:scale-[0.99]"
                   style={{ backgroundColor: "var(--color-accent)" }}
                 >
                   Foglalok
                 </button>
               </div>
-
-              {/* opcionális kis ár jelzés (nem változtat a designon) */}
-              <div className="px-4 pb-3 text-center text-[13px] text-[var(--color-muted)]">
-                {(() => {
-                  const d = s.durations[0];
-                  const p = priceOf(s._src, d);
-                  return p ? `Alapár: ${fmtHUF(p)} / ${d}p` : null;
-                })()}
-              </div>
             </article>
           ))}
         </div>
       </div>
 
-      {/* foglalási modal */}
+      {/* foglalási modal — az extra price map-et átadjuk, a UI-n nem változtat */}
       {booking && (
         <BookingDialog
           open={true}
@@ -237,17 +260,11 @@ export default function Services() {
             name: booking.service.name,
             durations: booking.service.durations,
           }}
+          pricesByDuration={booking.service.pricesByDuration}
           defaultDuration={booking.duration}
           onClose={() => setBooking(null)}
         />
       )}
-
-      {/* (te régi helper CSS-ed marad) */}
-      <style jsx global>{`
-        .chip-row{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
-        .chip-row::-webkit-scrollbar{display:none}
-        .chip-row{-ms-overflow-style:none;scrollbar-width:none}
-      `}</style>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
 import { keyDay, keyBooking, slotsNeeded, DAY_SLOTS, hhmmFromIndex } from "@/lib/booking";
-import { priceFor, fmtHUF } from "@/lib/pricing";
+import { getPriceBy, fmtHUF } from "@/lib/pricing";
 
 const LUA_TRY_BOOK = `
 for i=1,#ARGV do
@@ -49,7 +49,11 @@ export async function POST(req: Request) {
   }
 
   // rekord mentés
-  const price = priceFor(b.durationMin);
+  const price = await getPriceBy(b.serviceId, b.durationMin);
+  if (price == null) {
+    return NextResponse.json({ ok:false, error:"PRICE_NOT_FOUND" }, { status: 400 });
+  }
+  const label = fmtHUF(price);
   const record = {
     serviceId: b.serviceId,
     serviceName: b.serviceName,
@@ -59,7 +63,7 @@ export async function POST(req: Request) {
     durationMin: b.durationMin,
     startIndex: b.startIndex,
     date: b.date,
-    price,
+    label,
     createdAt: new Date().toISOString(),
   };
   await redis.hset(keyBooking(b.date, b.startIndex), record);

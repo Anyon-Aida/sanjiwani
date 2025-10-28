@@ -4,27 +4,35 @@ export const CATALOG_KEY = "catalog:v1";
 
 export type Catalog = {
   categories: {
-    id: string;
-    name: string;            // pl. "Olajos", "Meleg / herbál"...
+    id: string;          // pl. "oily", "warm"…
+    name: string;        // pl. "Olajos masszázsok"
     order?: number;
     services: {
-      id: string;            // pl. "oily-bali"
-      name: string;          // kártya címe
-      image?: string | null; // /public képfájl (opcionális)
-      short?: string | null;
+      id: string;        // pl. "oily-bali"
+      name: string;
+      description?: string | null;
+      image?: string | null; // opcionális – ha nincs, a Services saját fallbackje
       order?: number;
-      variants: Array<{
-        durationMin: number; // pl. 45,60,90,120,180
-        priceHUF: number;    // pl. 12000
-      }>;
+      variants: { durationMin: number; priceHUF: number }[];
     }[];
   }[];
-  faq?: { order?: number; q: string; a: string }[];
+  faq: { order?: number; q: string; a: string }[];
 };
 
-// egyszerű olvasó/író – az admin oldalt már be tudjuk kötni később
-export async function getCatalog(): Promise<Catalog | null> {
+const DEFAULT_CATALOG: Catalog = { categories: [], faq: [] };
+
+export async function getCatalog(): Promise<Catalog> {
   const raw = await redis.get(CATALOG_KEY);
-  if (!raw) return null;
-  return typeof raw === "string" ? JSON.parse(raw) : (raw as Catalog);
+  if (!raw) return DEFAULT_CATALOG;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as Catalog; } catch { return DEFAULT_CATALOG; }
+  }
+  return (raw ?? DEFAULT_CATALOG) as Catalog;
+}
+
+export async function setCatalog(c: Catalog) {
+  if (!Array.isArray(c.categories) || !Array.isArray(c.faq)) {
+    throw new Error("Invalid catalog");
+  }
+  await redis.set(CATALOG_KEY, JSON.stringify(c));
 }

@@ -1,18 +1,53 @@
+"use client";
+
 import { useMemo, useState, useEffect } from "react";
-import { Modal, DatePicker, Button, Space, Divider, Typography, Select, Input, Form, message } from "antd";
+import {
+  Modal,
+  DatePicker,
+  Button,
+  Space,
+  Divider,
+  Typography,
+  Select,
+  Input,
+  Form,
+  message,
+} from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { OPEN_HOUR, STEP_MIN, DAY_SLOTS, hhmmFromIndex } from "@/lib/booking";
-import { priceFor, fmtHUF } from "@/lib/pricing";
+import { fmtHUF } from "@/lib/pricing";
 
-type MinimalService = { id: string; name: string; durations: number[] };
+type BookingPayload = {
+  date: string;
+  startIndex: number;
+  durationMin: number;
+  serviceId: string;
+  serviceName: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+};
+
+type MinimalService = {
+  id: string;
+  name: string;
+  durations: number[];
+};
 
 export default function BookingDialog({
-  open, service, defaultDuration, onClose,
+  open,
+  service,
+  defaultDuration,
+  onClose,
+  onConfirm,
+  pricesByDuration,
 }: {
   open: boolean;
   service: MinimalService;
   defaultDuration: number;
   onClose: () => void;
+  onConfirm?: (payload: BookingPayload) => void;
+  pricesByDuration?: Record<number, number>;
 }) {
   const [form] = Form.useForm();
   const [date, setDate] = useState<Dayjs>(dayjs());
@@ -21,31 +56,38 @@ export default function BookingDialog({
   const [disabledStarts, setDisabledStarts] = useState<number[]>([]);
 
   const dateKey = date.format("YYYY-MM-DD");
-  const price = useMemo(() => priceFor(duration), [duration]);
+
+  // ár a katalógusból, fallback ha nincs
+  const price = useMemo(() => {
+    return pricesByDuration?.[duration] ?? 0;
+  }, [duration, pricesByDuration]);
 
   const starts = useMemo(
     () => Array.from({ length: DAY_SLOTS }, (_, i) => ({ i, label: hhmmFromIndex(i) })),
     []
   );
 
-  // elérhetőség API
+  // elérhetőség lekérés
   useEffect(() => {
     (async () => {
       setPickedIndex(null);
-      const r = await fetch(`/api/book/availability?date=${dateKey}&duration=${duration}`, { cache: "no-store" });
+      const r = await fetch(
+        `/api/book/availability?date=${dateKey}&duration=${duration}`,
+        { cache: "no-store" }
+      );
       const j = await r.json();
       if (j.ok) setDisabledStarts(j.disabled as number[]);
       else setDisabledStarts([]);
     })();
   }, [dateKey, duration]);
 
-  // aznapi múltbeli slotok tiltása is
+  // aznapi múltbeli slotok tiltása
   const disabledWithPast = useMemo(() => {
     if (!date.isSame(dayjs(), "day")) return disabledStarts;
     const now = dayjs();
     const minutesFromOpen = now.hour() * 60 + now.minute() - OPEN_HOUR * 60;
     const nowIndex = Math.floor(Math.max(0, minutesFromOpen) / STEP_MIN);
-    const extra = starts.filter(s => s.i <= nowIndex).map(s => s.i);
+    const extra = starts.filter((s) => s.i <= nowIndex).map((s) => s.i);
     return Array.from(new Set([...disabledStarts, ...extra]));
   }, [disabledStarts, date, starts]);
 
@@ -62,7 +104,7 @@ export default function BookingDialog({
         serviceName: service.name,
         customerName: vals.name as string,
         phone: vals.phone as string,
-        email: vals.email as string | undefined, // ÚJ
+        email: vals.email as string | undefined,
       };
 
       const r = await fetch("/api/book", {
@@ -73,7 +115,8 @@ export default function BookingDialog({
       const j = await r.json();
 
       if (!j.ok) {
-        if (r.status === 409) return message.error("Sajnos közben elfogyott ez az időpont.");
+        if (r.status === 409)
+          return message.error("Sajnos közben elfogyott ez az időpont.");
         return message.error("Nem sikerült lefoglalni. Próbáld újra.");
       }
 
@@ -96,21 +139,26 @@ export default function BookingDialog({
     >
       <Form form={form} layout="vertical" requiredMark={false}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Form.Item name="name" label="Név" rules={[{ required: true, message: "Kötelező" }]}>
+          <Form.Item
+            name="name"
+            label="Név"
+            rules={[{ required: true, message: "Kötelező" }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="phone" label="Telefon" rules={[{ required: true, message: "Kötelező" }]}>
+          <Form.Item
+            name="phone"
+            label="Telefon"
+            rules={[{ required: true, message: "Kötelező" }]}
+          >
             <Input />
           </Form.Item>
         </div>
 
-        {/* ÚJ: e-mail */}
         <Form.Item
           name="email"
           label="E-mail (visszaigazoláshoz)"
-          rules={[
-            { type: "email", message: "Érvénytelen e-mail" },
-          ]}
+          rules={[{ type: "email", message: "Érvénytelen e-mail" }]}
         >
           <Input />
         </Form.Item>
@@ -121,16 +169,23 @@ export default function BookingDialog({
             <DatePicker
               value={date}
               onChange={(v) => v && setDate(v)}
-              disabledDate={(d) => d && d.startOf("day").isBefore(dayjs().startOf("day"))}
+              disabledDate={(d) =>
+                d && d.startOf("day").isBefore(dayjs().startOf("day"))
+              }
               style={{ width: "100%" }}
             />
           </div>
           <div>
-            <div className="text-sm text-[var(--color-muted)]">Szolgáltatási idő</div>
+            <div className="text-sm text-[var(--color-muted)]">
+              Szolgáltatási idő
+            </div>
             <Select
               value={duration}
               onChange={setDuration}
-              options={service.durations.map((m) => ({ value: m, label: `${m} perc` }))}
+              options={service.durations.map((m) => ({
+                value: m,
+                label: `${m} perc`,
+              }))}
               style={{ width: "100%" }}
             />
             <div className="mt-2 text-sm">
@@ -139,13 +194,16 @@ export default function BookingDialog({
           </div>
         </div>
 
-        {(["Reggel","Nap","Este"] as const).map(group => {
-          const rng = group==="Reggel" ? [0, 6] : group==="Nap" ? [6, 16] : [16, DAY_SLOTS];
+        {(["Reggel", "Nap", "Este"] as const).map((group) => {
+          const rng =
+            group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
           return (
             <div key={group} style={{ marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ marginLeft: 4 }}>{group}</Typography.Text>
+              <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
+                {group}
+              </Typography.Text>
               <div style={{ marginTop: 8 }}>
-                <Space size={[10,10]} wrap>
+                <Space size={[10, 10]} wrap>
                   {starts.slice(rng[0], rng[1]).map(({ i, label }) => {
                     const disabled = disabledWithPast.includes(i);
                     const active = pickedIndex === i;
