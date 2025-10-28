@@ -497,28 +497,6 @@ export default function AdminCatalogPage() {
         </div>
 
         {/* Részletek / árak */}
-        {selectedSvc && (
-        <div>
-            <label className="block text-[12px] text-[var(--color-muted)]">Kategória</label>
-            <select
-            value={
-                selectedSvcCatIdx >= 0
-                ? data.categories[selectedSvcCatIdx].id
-                : data.categories[catIdx].id
-            }
-            onChange={(e) => moveServiceToCategory(selectedSvc.id, e.target.value)}
-            className="w-full h-[40px] rounded-md border px-3 text-[14px]"
-            style={{ borderColor: "var(--color-line)" }}
-            >
-            {data.categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                {c.name}
-                </option>
-            ))}
-            </select>
-        </div>
-        )}
-
         <div className="rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
           <h3 className="font-semibold mb-2">Részletek</h3>
           {!selectedSvc ? (
@@ -542,6 +520,28 @@ export default function AdminCatalogPage() {
                   style={{ borderColor: "var(--color-line)" }}
                 />
               </div>
+
+            {selectedSvc && (
+            <div>
+                <label className="block text-[12px] text-[var(--color-muted)]">Kategória</label>
+                <select
+                value={
+                    selectedSvcCatIdx >= 0
+                    ? data.categories[selectedSvcCatIdx].id
+                    : data.categories[catIdx].id
+                }
+                onChange={(e) => moveServiceToCategory(selectedSvc.id, e.target.value)}
+                className="w-full h-[40px] rounded-md border px-3 text-[14px]"
+                style={{ borderColor: "var(--color-line)" }}
+                >
+                {data.categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                    {c.name}
+                    </option>
+                ))}
+                </select>
+            </div>
+            )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
