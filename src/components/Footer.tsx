@@ -24,7 +24,7 @@ export default function Footer() {
       {/* felfelé ívelt kupola */}
     <div aria-hidden="true"
         className="pointer-events-none absolute -top-[100px] left-1/2 z-[1]
-                    h-[220px] w-[520px] -translate-x-1/2
+                    h-[220px] w-[100vw] md:w-[520px] -translate-x-1/2
                     bg-[#caa46f]
                     [clip-path:ellipse(260px_220px_at_50%_100%)]
                     flex items-center justify-center">
