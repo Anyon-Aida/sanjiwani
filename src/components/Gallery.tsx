@@ -58,7 +58,7 @@ export default function Gallery({
   }, [openIdx]);
 
   return (
-    <section className="container-narrow my-16">
+    <section id="gallery" className="container-narrow my-16">
       {/* középre zárt, azonos max-width mint a többi szekciónál */}
       <div className="mx-auto w-full">
         <div className="flex items-end justify-between gap-4 mb-6">

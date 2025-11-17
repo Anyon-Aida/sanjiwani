@@ -77,7 +77,7 @@ export default function Contact() {
   }
 
   return (
-    <section className="container-narrow my-21">
+    <section id="contact" className="container-narrow my-21">
       {/* Fejléc + jobb oldalt cím/telefon, mint a figmán */}
       <div className="flex items-end justify-between gap-6 mb-6">
         <h2 className="text-3xl font-bold font-serif tracking-tight">
