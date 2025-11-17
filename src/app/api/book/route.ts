@@ -31,11 +31,6 @@ function isEmail(x?: string) {
 export async function POST(req: Request) {
   const b = (await req.json()) as Body;
 
-  console.log("BOOKING BODY:", b);
-  console.log("RESEND_API_KEY exists?", !!process.env.RESEND_API_KEY);
-  console.log("OWNER_EMAIL:", process.env.OWNER_EMAIL);
-  console.log("RESEND_FROM:", process.env.RESEND_FROM);
-
   const errors: string[] = [];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date)) errors.push("date");
   if (b.startIndex < 0 || b.startIndex >= DAY_SLOTS) errors.push("startIndex");
@@ -81,6 +76,12 @@ export async function POST(req: Request) {
 
   let mail: unknown = null;
   if (apiKey && (owner || isEmail(b.email))) {
+    console.log("SENDING MAIL VIA RESEND", {
+      fromAddr,
+      owner,
+      customer: b.email,
+    });
+
     try {
       const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
@@ -95,17 +96,18 @@ export async function POST(req: Request) {
 
       // tulajnak
       if (owner) {
-        await resend.emails.send({
+        const ownerRes = await resend.emails.send({
           from: fromAddr,
           to: owner,
           subject: `Új foglalás – ${b.serviceName} (${b.date} ${timeLabel})`,
           text: lines,
         });
+        console.log("OWNER MAIL RESULT:", ownerRes);
       }
 
       // vásárlónak
       if (isEmail(b.email)) {
-        mail = await resend.emails.send({
+        const customerRes = await resend.emails.send({
           from: fromAddr,
           to: b.email!,
           subject: "Foglalás visszaigazolás",
@@ -115,11 +117,19 @@ export async function POST(req: Request) {
             `Ha módosítani szeretnél, hívd ezt a számot: +36 30 264 7176 \n\n` +
             `vagy írj emailt: info@sanjiwani.hu`,
         });
+        console.log("CUSTOMER MAIL RESULT:", customerRes);
+        mail = customerRes;
       }
     } catch (err) {
       console.error("Resend error:", err);
       mail = { error: "MAIL_ERROR" };
     }
+  } else {
+    console.log("SKIP MAIL – missing apiKey or recipient", {
+      hasKey: !!apiKey,
+      owner,
+      customer: b.email,
+    });
   }
 
   return NextResponse.json({ ok: true, mail });
