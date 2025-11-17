@@ -54,6 +54,7 @@ export default function BookingDialog({
   const [duration, setDuration] = useState<number>(defaultDuration);
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
   const [disabledStarts, setDisabledStarts] = useState<number[]>([]);
+  const [submitted, setSubmitted] = useState(false);
 
   const dateKey = date.format("YYYY-MM-DD");
 
@@ -66,6 +67,13 @@ export default function BookingDialog({
     () => Array.from({ length: DAY_SLOTS }, (_, i) => ({ i, label: hhmmFromIndex(i) })),
     []
   );
+
+  useEffect(() => {
+    if (open) {
+      setSubmitted(false);
+    }
+  }, [open]);
+
 
   // elérhetőség lekérés
   useEffect(() => {
@@ -120,8 +128,11 @@ export default function BookingDialog({
         return message.error("Nem sikerült lefoglalni. Próbáld újra.");
       }
 
-      message.success("Sikeres foglalás! Küldtünk visszaigazoló e-mailt is.");
-      onClose();
+      message.success("Köszönjük, foglalását megkaptuk.");
+
+      if (onConfirm) onConfirm(payload);
+
+      setSubmitted(true);  
       form.resetFields();
       setPickedIndex(null);
     } catch {
@@ -133,99 +144,120 @@ export default function BookingDialog({
     <Modal
       open={open}
       onCancel={onClose}
-      title={service.name}
-      onOk={submit}
-      okText={`Foglalás megerősítése – ${fmtHUF(price)}`}
+      title={submitted ? "Foglalás elküldve" : service.name}
+      onOk={
+        submitted
+          ? () => {
+              setSubmitted(false);
+              onClose();
+            }
+          : submit
+      }
+      okText={
+        submitted
+          ? "Bezárás"
+          : `Foglalás megerősítése – ${fmtHUF(price)}`
+      }
     >
-      <Form form={form} layout="vertical" requiredMark={false}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {submitted ? (
+        <div className="space-y-2 text-sm">
+          <p><b>Köszönjük, foglalását megkaptuk!</b></p>
+          <p>
+            A megadott elérhetőségeid egyikére rövidesen visszaigazolást küldünk.
+            Ha nem érkezik e-mail, kérjük ellenőrizd a spam mappát is.
+          </p>
+        </div>
+      ) : (
+        <Form form={form} layout="vertical" requiredMark={false}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Form.Item
+              name="name"
+              label="Név"
+              rules={[{ required: true, message: "Kötelező" }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name="phone"
+              label="Telefon"
+              rules={[{ required: true, message: "Kötelező" }]}
+            >
+              <Input />
+            </Form.Item>
+          </div>
+
           <Form.Item
-            name="name"
-            label="Név"
-            rules={[{ required: true, message: "Kötelező" }]}
+            name="email"
+            label="E-mail (visszaigazoláshoz)"
+            rules={[{ type: "email", message: "Érvénytelen e-mail" }]}
           >
             <Input />
           </Form.Item>
-          <Form.Item
-            name="phone"
-            label="Telefon"
-            rules={[{ required: true, message: "Kötelező" }]}
-          >
-            <Input />
-          </Form.Item>
-        </div>
 
-        <Form.Item
-          name="email"
-          label="E-mail (visszaigazoláshoz)"
-          rules={[{ type: "email", message: "Érvénytelen e-mail" }]}
-        >
-          <Input />
-        </Form.Item>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
-          <div>
-            <div className="text-sm text-[var(--color-muted)]">Dátum</div>
-            <DatePicker
-              value={date}
-              onChange={(v) => v && setDate(v)}
-              disabledDate={(d) =>
-                d && d.startOf("day").isBefore(dayjs().startOf("day"))
-              }
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div>
-            <div className="text-sm text-[var(--color-muted)]">
-              Szolgáltatási idő
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+            <div>
+              <div className="text-sm text-[var(--color-muted)]">Dátum</div>
+              <DatePicker
+                value={date}
+                onChange={(v) => v && setDate(v)}
+                disabledDate={(d) =>
+                  d && d.startOf("day").isBefore(dayjs().startOf("day"))
+                }
+                style={{ width: "100%" }}
+              />
             </div>
-            <Select
-              value={duration}
-              onChange={setDuration}
-              options={service.durations.map((m) => ({
-                value: m,
-                label: `${m} perc`,
-              }))}
-              style={{ width: "100%" }}
-            />
-            <div className="mt-2 text-sm">
-              Végösszeg: <b>{fmtHUF(price)}</b>
-            </div>
-          </div>
-        </div>
-
-        {(["Reggel", "Nap", "Este"] as const).map((group) => {
-          const rng =
-            group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
-          return (
-            <div key={group} style={{ marginBottom: 8 }}>
-              <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
-                {group}
-              </Typography.Text>
-              <div style={{ marginTop: 8 }}>
-                <Space size={[10, 10]} wrap>
-                  {starts.slice(rng[0], rng[1]).map(({ i, label }) => {
-                    const disabled = disabledWithPast.includes(i);
-                    const active = pickedIndex === i;
-                    return (
-                      <Button
-                        key={i}
-                        type={active ? "primary" : "default"}
-                        shape="round"
-                        disabled={disabled}
-                        onClick={() => !disabled && setPickedIndex(i)}
-                      >
-                        {label}
-                      </Button>
-                    );
-                  })}
-                </Space>
+            <div>
+              <div className="text-sm text-[var(--color-muted)]">
+                Szolgáltatási idő
               </div>
-              <Divider style={{ margin: "14px 0" }} />
+              <Select
+                value={duration}
+                onChange={setDuration}
+                options={service.durations.map((m) => ({
+                  value: m,
+                  label: `${m} perc`,
+                }))}
+                style={{ width: "100%" }}
+              />
+              <div className="mt-2 text-sm">
+                Végösszeg: <b>{fmtHUF(price)}</b>
+              </div>
             </div>
-          );
-        })}
-      </Form>
+          </div>
+
+          {(["Reggel", "Nap", "Este"] as const).map((group) => {
+            const rng =
+              group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
+            return (
+              <div key={group} style={{ marginBottom: 8 }}>
+                <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
+                  {group}
+                </Typography.Text>
+                <div style={{ marginTop: 8 }}>
+                  <Space size={[10, 10]} wrap>
+                    {starts.slice(rng[0], rng[1]).map(({ i, label }) => {
+                      const disabled = disabledWithPast.includes(i);
+                      const active = pickedIndex === i;
+                      return (
+                        <Button
+                          key={i}
+                          type={active ? "primary" : "default"}
+                          shape="round"
+                          disabled={disabled}
+                          onClick={() => !disabled && setPickedIndex(i)}
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </Space>
+                </div>
+                <Divider style={{ margin: "14px 0" }} />
+              </div>
+            );
+          })}
+        </Form>
+      )}
     </Modal>
   );
 }
