@@ -30,6 +30,12 @@ function isEmail(x?: string) {
 
 export async function POST(req: Request) {
   const b = (await req.json()) as Body;
+
+  console.log("BOOKING BODY:", b);
+  console.log("RESEND_API_KEY exists?", !!process.env.RESEND_API_KEY);
+  console.log("OWNER_EMAIL:", process.env.OWNER_EMAIL);
+  console.log("RESEND_FROM:", process.env.RESEND_FROM);
+
   const errors: string[] = [];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date)) errors.push("date");
   if (b.startIndex < 0 || b.startIndex >= DAY_SLOTS) errors.push("startIndex");

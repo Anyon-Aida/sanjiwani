@@ -30,7 +30,7 @@ export default function Hero() {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <a
-                href="#booking"
+                href="#services"
                 className="inline-flex items-center rounded-full px-5 py-3 font-bold text-white shadow-spa"
                 style={{ backgroundColor: "var(--color-primary)" }}
               >
