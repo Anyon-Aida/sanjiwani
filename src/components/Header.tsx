@@ -37,7 +37,7 @@ export default function Header() {
       {/* HEADER – szélesebb, kifutóbb layout */}
       <div className="w-full text-white" style={{ backgroundColor: GOLD }}>
         <div
-          className="mx-auto flex items-center justify-between gap-6 px-6 py-7 md:py-8 relative z-30"  // + relative z-30
+          className="mx-auto flex items-center justify-between gap-6 px-6 py-7 md:py-8 relative"  // + relative z-30
           style={{ maxWidth: HEADER_MAX_W }}
         >
           <Link href="/" className="flex items-center gap-4">
