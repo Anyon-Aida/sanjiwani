@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 const NAV = [
   { href: "#services", label: "MASSAGES" },
   { href: "#about", label: "ABOUT US" },
-  { href: "#offers", label: "OFFERS" },
-  { href: "#staff", label: "OUR STAFF" },
+  { href: "#reviews", label: "OPINION" },
+  { href: "#gallery", label: "GALLERY" },
   { href: "#contact", label: "CONTACT" },
 ];
 
