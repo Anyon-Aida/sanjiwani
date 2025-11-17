@@ -145,18 +145,28 @@ export default function BookingDialog({
       open={open}
       onCancel={onClose}
       title={submitted ? "Foglalás elküldve" : service.name}
-      onOk={
-        submitted
-          ? () => {
-              setSubmitted(false);
-              onClose();
-            }
-          : submit
-      }
+      onOk={submitted ? undefined : submit}
       okText={
         submitted
           ? "Bezárás"
           : `Foglalás megerősítése – ${fmtHUF(price)}`
+      }
+      closable={!submitted}
+      footer={
+        submitted
+          ? [
+              <Button
+                key="close"
+                type="primary"
+                onClick={() => {
+                  setSubmitted(false);
+                  onClose();
+                }}
+              >
+                Bezárás
+              </Button>,
+            ]
+          : undefined // ilyenkor a default OK/Cancel + onOk/okText érvényes
       }
     >
       {submitted ? (
