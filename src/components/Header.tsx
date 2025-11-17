@@ -86,9 +86,9 @@ export default function Header() {
         <div className="mx-auto w-full" style={{ maxWidth: HEADER_MAX_W }}>
           <div className="mx-auto" style={{ maxWidth: NAV_MAX_W }}>
             <div
-              className={`relative z-10 bg-white shadow-spa ${
+              className={`relative z-40 bg-white shadow-spa ${
                 compact ? "rounded-none" : "rounded-[24px]"
-              } md:overflow-hidden overflow-visible`}   // <<— EZ A LÉNYEG
+              } md:overflow-hidden overflow-visible`}
               style={{ borderColor: DIVIDER, marginTop: "-30px" }}
             >
               <nav className="hidden md:grid grid-cols-5">
