@@ -5,11 +5,11 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const NAV = [
-  { href: "#services", label: "MASSAGES" },
-  { href: "#about", label: "ABOUT US" },
-  { href: "#reviews", label: "OPINION" },
-  { href: "#gallery", label: "GALLERY" },
-  { href: "#contact", label: "CONTACT" },
+  { href: "#services", label: "MASSZÁZS" },
+  { href: "#about", label: "RÓLUNK" },
+  { href: "#reviews", label: "VÉLEMÉNYEK" },
+  { href: "#gallery", label: "GALÉRIA" },
+  { href: "#contact", label: "KAPCSOLAT" },
 ];
 
 const GOLD = "#CBA670";

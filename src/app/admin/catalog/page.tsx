@@ -22,6 +22,11 @@ export default function AdminCatalog() {
   const [catIdx, setCatIdx] = useState(0);
   const [svcIdx, setSvcIdx] = useState(0);
 
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+  const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
   // GET
   useEffect(() => {
     (async () => {
@@ -143,6 +148,45 @@ export default function AdminCatalog() {
     svc.variants = svc.variants.filter((v) => v.durationMin !== dur);
     setData(copy);
   };
+
+  const handleImageUpload = async (file: File) => {
+    if (!data || !selectedSvc) return;
+    try {
+      setUploadingImage(true);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const json = await res.json();
+      if (!res.ok || !json.secure_url) {
+        throw new Error("Nem sikerült feltölteni a képet.");
+      }
+
+      const imageUrl = json.secure_url as string;
+
+      // belerakjuk a katalógusba
+      const copy = structuredClone(data);
+      copy.categories[catIdx].services[svcIdx].image = imageUrl;
+      setData(copy);
+      setToast("Kép feltöltve.");
+    } catch (e) {
+      console.error(e);
+      setError((e as Error).message || "Kép feltöltési hiba.");
+    } finally {
+      setUploadingImage(false);
+      setTimeout(() => setToast(null), 2500);
+    }
+  };
+
 
   // ======== SAVE
   const save = async () => {
@@ -316,16 +360,48 @@ export default function AdminCatalog() {
                 </div>
                 <div>
                   <Label text="Kép (opcionális)" />
-                  <input
-                    value={selectedSvc.image ?? ""}
-                    onChange={(e) => {
-                      const copy = structuredClone(data!);
-                      copy.categories[catIdx].services[svcIdx].image = e.target.value;
-                      setData(copy);
-                    }}
-                    placeholder="/services/traditional-thai.png"
-                    className="w-full rounded-lg border px-3 py-2"
-                  />
+                  <div className="space-y-2">
+                    {/* Fájl tallózás */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        await handleImageUpload(file);
+                      }}
+                      className="w-full rounded-lg border px-3 py-2"
+                    />
+
+                    {/* Ha nagyon akarod, maradhat a kézi URL beírás is */}
+                    <input
+                      value={selectedSvc.image ?? ""}
+                      onChange={(e) => {
+                        const copy = structuredClone(data!);
+                        copy.categories[catIdx].services[svcIdx].image = e.target.value;
+                        setData(copy);
+                      }}
+                      placeholder="/services/traditional-thai.png vagy teljes URL"
+                      className="w-full rounded-lg border px-3 py-2"
+                    />
+
+                    {/* Feltöltés státusz */}
+                    {uploadingImage && (
+                      <div className="text-xs text-zinc-500">Kép feltöltése…</div>
+                    )}
+
+                    {/* Előnézet, ha már van kép */}
+                    {selectedSvc.image && (
+                      <div className="mt-1">
+                        <div className="text-xs text-zinc-500 mb-1">Előnézet:</div>
+                        <img
+                          src={selectedSvc.image}
+                          alt={selectedSvc.name}
+                          className="h-24 w-24 rounded object-cover border"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
