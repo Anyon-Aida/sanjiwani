@@ -8,5 +8,8 @@
       "path": "/api/keepalive", 
       "schedule": "0 9 * * *" 
     }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "/maintenance.html" }
   ]
 }
