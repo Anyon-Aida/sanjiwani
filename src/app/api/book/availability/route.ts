@@ -6,16 +6,21 @@ export async function GET(req: Request) {
   const u = new URL(req.url);
   const date = u.searchParams.get("date") || "";
   const duration = Number(u.searchParams.get("duration") || "60");
+  const staffId = u.searchParams.get("staffId") || "";
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ ok: false, error: "BAD_DATE" }, { status: 400 });
   }
+  if (!staffId) {
+    return NextResponse.json({ ok: false, error: "MISSING_STAFF" }, { status: 400 });
+  }
+
   const need = slotsNeeded(duration);
 
-  // A nap foglalt slotjai (mi minden foglalt indexet SADD-oltunk foglaláskor)
-  const taken = await redis.smembers(keyDay(date)); // string[] pl. ["0","1","2","7","8"]
+  // A nap foglalt slotjai staff szerint
+  const taken = await redis.smembers(keyDay(date, staffId)); // ["0","1","2"...]
   const takenSet = new Set(taken.map(Number));
 
-  // Mely start index NEM választható? Ha bármely szükséges index ütközik
   const disabled: number[] = [];
   for (let start = 0; start <= DAY_SLOTS - need; start++) {
     let overlaps = false;

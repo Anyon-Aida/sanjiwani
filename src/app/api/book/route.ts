@@ -14,6 +14,8 @@ return 1
 `;
 
 type Body = {
+  staffId: string;
+  staffName?: string;
   date: string;
   startIndex: number;
   durationMin: number;
@@ -36,6 +38,7 @@ export async function POST(req: Request) {
   if (b.startIndex < 0 || b.startIndex >= DAY_SLOTS) errors.push("startIndex");
   if (!b.customerName) errors.push("customerName");
   if (!b.phone) errors.push("phone");
+  if (!b.staffId) errors.push("staffId");
   if (!b.serviceId || !b.serviceName) errors.push("service");
   if (errors.length) {
     return NextResponse.json({ ok: false, error: "BAD_REQUEST", fields: errors }, { status: 400 });
@@ -44,7 +47,7 @@ export async function POST(req: Request) {
   const need = slotsNeeded(b.durationMin);
   const indices = Array.from({ length: need }, (_, k) => String(b.startIndex + k));
 
-  const ok = await redis.eval(LUA_TRY_BOOK, [keyDay(b.date)], indices);
+  const ok = await redis.eval(LUA_TRY_BOOK, [keyDay(b.date, b.staffId)], indices);
   if (!ok) {
     return NextResponse.json({ ok: false, error: "CONFLICT" }, { status: 409 });
   }
@@ -56,6 +59,8 @@ export async function POST(req: Request) {
   }
   const label = fmtHUF(price);
   const record = {
+    staffId: b.staffId,
+    staffName: b.staffName ?? null,
     serviceId: b.serviceId,
     serviceName: b.serviceName,
     customerName: b.customerName,
@@ -67,7 +72,7 @@ export async function POST(req: Request) {
     label,
     createdAt: new Date().toISOString(),
   };
-  await redis.hset(keyBooking(b.date, b.startIndex), record);
+  await redis.hset(keyBooking(b.date, b.startIndex, b.staffId), record);
 
   // e-mail(ek)
   const apiKey = process.env.RESEND_API_KEY;
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
       const timeLabel = hhmmFromIndex(b.startIndex);
       const lines = [
         `Szolgáltatás: ${b.serviceName} (${b.durationMin} perc)`,
+        `Masszőr: ${b.staffName ?? b.staffId}`,
         `Időpont: ${b.date} ${timeLabel}`,
         `Végösszeg: ${fmtHUF(price)}`,
         `Név: ${b.customerName}`,

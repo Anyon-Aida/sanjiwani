@@ -84,7 +84,7 @@ export default function Contact() {
           Kapcsolat &amp; Megközelítés
         </h2>
         <div className="text-sm text-[color:var(--muted,#5b534a)]">
-          Cím: {ADDRESS} &nbsp;•&nbsp; Telefon: {PHONE}
+          Cím: {ADDRESS} (bejárat szövetség u. sarka) &nbsp;•&nbsp; Telefon: {PHONE}
         </div>
       </div>
 

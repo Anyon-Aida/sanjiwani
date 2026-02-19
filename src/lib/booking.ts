@@ -22,6 +22,13 @@ export function slotsNeeded(durationMin: number) {
   return Math.ceil(durationMin / STEP_MIN);
 }
 
-// Redis kulcsok
-export const keyDay = (date: string) => `book:day:${date}`;           // Set of taken indices
-export const keyBooking = (date: string, idx: number) => `book:one:${date}:${idx}`; // booking adatai
+// Redis kulcso
+export function keyDay(date: string, staffId: string) {
+  if (staffId) return `book:staff:${staffId}:day:${date}`;
+  return `book:day:${date}`; // ha backward kompatibilitás kell
+}
+
+export function keyBooking(date: string, startIndex: number, staffId: string) {
+  if (staffId) return `book:staff:${staffId}:one:${date}:${startIndex}`;
+  return `book:one:${date}:${startIndex}`;
+}

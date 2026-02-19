@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import BookingDialog from "./BookingDialog";
+import { apiFetch } from "@/lib/apiFetch";
 
 type Category =
   | "Mind"
@@ -60,7 +61,7 @@ export default function Services() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch("/api/catalog", { cache: "no-store" });
+        const r = await apiFetch("/api/catalog", { cache: "no-store" })
         const j = await r.json();
         const catData = j?.data as {
           categories: {

@@ -57,7 +57,7 @@ export default function Header() {
             <TopDivider />
             <Contact icon={<AtIcon className="w-6 h-6 opacity-90" />} title="Email" value="info@sanjiwani.hu" link="mailto:info@sanjiwani.hu" />
             <TopDivider />
-            <Contact icon={<ClockIcon className="w-6 h-6 opacity-90" />} title="Opening hours" value={<><strong>Sunday: 10–18</strong><br /> Monday - Saturday: 10–21</>} />
+            <Contact icon={<ClockIcon className="w-6 h-6 opacity-90" />} title="Opening hours" value={<><strong>Szerda: Zárva</strong><br /> Hétfő - Vasárnap: 09–20</>} />
             <TopDivider />
             <span className="hidden md:inline-block rounded px-2 py-1 font-bold">HU</span>
           </div>

@@ -8,7 +8,9 @@ export default function About() {
         <div className="grid grid-cols-1 md:grid-cols-[1.05fr_0.95fr] gap-8 md:gap-10 items-center">
           {/* szöveg – mobilon felül */}
           <div>
-            <h2 className="font-heading text-[36px] md:text-[32px] leading-tight mb-3">Rólunk</h2>
+            <h2 className="font-heading text-[36px] md:text-[32px] leading-tight mb-3">
+              Rólunk
+            </h2>
 
             <p className="text-[16px] leading-7 text-[var(--color-foreground)]/80 mb-4 max-w-[60ch]">
               Célunk, hogy egy olyan menedéket nyújtsunk, ahol a nyugalom és a
@@ -23,9 +25,26 @@ export default function About() {
               <li>Személyre szabott figyelem</li>
             </ul>
 
+            {/* ÚJ: Kedvezmények / bérlet */}
+            <div
+              className="mt-6 rounded-2xl border p-5 shadow-spa bg-white"
+              style={{ borderColor: "var(--color-line)" }}
+            >
+              <div className="font-heading text-[18px] mb-2">
+                Havi bérletkedvezmények
+              </div>
+
+              <ul className="space-y-1 text-[15px] text-[var(--color-foreground)]/80">
+                <li>🌸 3 alkalom esetén: <b>5% kedvezmény</b></li>
+                <li>🌸 5 alkalom esetén: <b>10% kedvezmény</b></li>
+                <li>🌸 10 alkalom esetén: <b>15% kedvezmény</b></li>
+                <li>🌸 Nyugdíjas kedvezmény: <b>10%</b></li>
+              </ul>
+            </div>
+
             <div className="mt-6">
               <a
-                href="#booking"
+                href="#services"
                 className="inline-flex items-center rounded-full px-5 py-3 font-bold text-white shadow-spa"
                 style={{ backgroundColor: "var(--color-primary)" }}
               >

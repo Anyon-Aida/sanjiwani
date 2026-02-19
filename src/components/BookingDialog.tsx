@@ -16,8 +16,13 @@ import {
 import dayjs, { Dayjs } from "dayjs";
 import { OPEN_HOUR, STEP_MIN, DAY_SLOTS, hhmmFromIndex } from "@/lib/booking";
 import { fmtHUF } from "@/lib/pricing";
+import StaffPicker, { Staff } from "@/components/StaffPicker";
+import { motion, AnimatePresence } from "framer-motion";
+
 
 type BookingPayload = {
+  staffId: string;
+  staffName: string;
   date: string;
   startIndex: number;
   durationMin: number;
@@ -55,6 +60,7 @@ export default function BookingDialog({
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
   const [disabledStarts, setDisabledStarts] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [pickedStaff, setPickedStaff] = useState<Staff | null>(null);
 
   const dateKey = date.format("YYYY-MM-DD");
 
@@ -71,6 +77,7 @@ export default function BookingDialog({
   useEffect(() => {
     if (open) {
       setSubmitted(false);
+      setPickedStaff(null);
     }
   }, [open]);
 
@@ -79,15 +86,17 @@ export default function BookingDialog({
   useEffect(() => {
     (async () => {
       setPickedIndex(null);
+      if (!pickedStaff) { setDisabledStarts([]); return; }
+
       const r = await fetch(
-        `/api/book/availability?date=${dateKey}&duration=${duration}`,
+          `/api/book/availability?date=${dateKey}&duration=${duration}&staffId=${pickedStaff.id}`,
         { cache: "no-store" }
       );
       const j = await r.json();
       if (j.ok) setDisabledStarts(j.disabled as number[]);
       else setDisabledStarts([]);
     })();
-  }, [dateKey, duration]);
+  }, [dateKey, duration, pickedStaff?.id]);
 
   // aznapi múltbeli slotok tiltása
   const disabledWithPast = useMemo(() => {
@@ -103,8 +112,11 @@ export default function BookingDialog({
     try {
       const vals = await form.validateFields();
       if (pickedIndex == null) return message.warning("Válassz időpontot!");
+      if (!pickedStaff) return message.warning("Válassz masszőrt!");
 
       const payload = {
+        staffId: pickedStaff.id,
+        staffName: pickedStaff.name,
         date: dateKey,
         startIndex: pickedIndex,
         durationMin: duration,
@@ -149,7 +161,9 @@ export default function BookingDialog({
       okText={
         submitted
           ? "Bezárás"
-          : `Foglalás megerősítése – ${fmtHUF(price)}`
+          : !pickedStaff
+            ? "Válassz masszőrt"
+            : `Foglalás megerősítése – ${fmtHUF(price)}`
       }
       closable={!submitted}
       footer={
@@ -204,68 +218,90 @@ export default function BookingDialog({
             <Input />
           </Form.Item>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
-            <div>
-              <div className="text-sm text-[var(--color-muted)]">Dátum</div>
-              <DatePicker
-                value={date}
-                onChange={(v) => v && setDate(v)}
-                disabledDate={(d) =>
-                  d && d.startOf("day").isBefore(dayjs().startOf("day"))
-                }
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div>
-              <div className="text-sm text-[var(--color-muted)]">
-                Szolgáltatási idő
-              </div>
-              <Select
-                value={duration}
-                onChange={setDuration}
-                options={service.durations.map((m) => ({
-                  value: m,
-                  label: `${m} perc`,
-                }))}
-                style={{ width: "100%" }}
-              />
-              <div className="mt-2 text-sm">
-                Végösszeg: <b>{fmtHUF(price)}</b>
-              </div>
-            </div>
-          </div>
+          <StaffPicker value={pickedStaff} onChange={setPickedStaff} />
 
-          {(["Reggel", "Nap", "Este"] as const).map((group) => {
-            const rng =
-              group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
-            return (
-              <div key={group} style={{ marginBottom: 8 }}>
-                <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
-                  {group}
-                </Typography.Text>
-                <div style={{ marginTop: 8 }}>
-                  <Space size={[10, 10]} wrap>
-                    {starts.slice(rng[0], rng[1]).map(({ i, label }) => {
-                      const disabled = disabledWithPast.includes(i);
-                      const active = pickedIndex === i;
-                      return (
-                        <Button
-                          key={i}
-                          type={active ? "primary" : "default"}
-                          shape="round"
-                          disabled={disabled}
-                          onClick={() => !disabled && setPickedIndex(i)}
-                        >
-                          {label}
-                        </Button>
-                      );
-                    })}
-                  </Space>
+          <AnimatePresence initial={false}>
+            {pickedStaff && (
+              <motion.div
+                key="booking-rest"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.22 }}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                  <div>
+                    <div className="text-sm text-[var(--color-muted)]">Dátum</div>
+                    <DatePicker
+                      value={date}
+                      onChange={(v) => v && setDate(v)}
+                      disabledDate={(d) =>
+                        d && d.startOf("day").isBefore(dayjs().startOf("day"))
+                      }
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-[var(--color-muted)]">
+                      Szolgáltatási idő
+                    </div>
+                    <Select
+                      value={duration}
+                      onChange={setDuration}
+                      options={service.durations.map((m) => ({
+                        value: m,
+                        label: `${m} perc`,
+                      }))}
+                      style={{ width: "100%" }}
+                    />
+                    <div className="mt-2 text-sm">
+                      Végösszeg: <b>{fmtHUF(price)}</b>
+                    </div>
+                  </div>
                 </div>
-                <Divider style={{ margin: "14px 0" }} />
-              </div>
-            );
-          })}
+
+                {(["Reggel", "Nap", "Este"] as const).map((group) => {
+                  const rng =
+                    group === "Reggel" ? [0, 6] : group === "Nap" ? [6, 16] : [16, DAY_SLOTS];
+                  return (
+                    <div key={group} style={{ marginBottom: 8 }}>
+                      <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
+                        {group}
+                      </Typography.Text>
+                      <div style={{ marginTop: 8 }}>
+                        <Space size={[10, 10]} wrap>
+                          {starts.slice(rng[0], rng[1]).map(({ i, label }) => {
+                            const disabled = disabledWithPast.includes(i);
+                            const active = pickedIndex === i;
+                            return (
+                              <Button
+                                key={i}
+                                type={active ? "primary" : "default"}
+                                shape="round"
+                                disabled={disabled}
+                                onClick={() => !disabled && setPickedIndex(i)}
+                              >
+                                {label}
+                              </Button>
+                            );
+                          })}
+                        </Space>
+                      </div>
+                      <Divider style={{ margin: "14px 0" }} />
+                    </div>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!pickedStaff && (
+            <div className="mt-16 text-sm text-[var(--color-muted)]">
+              Először válassz masszőrt az időpontok megjelenítéséhez.
+            </div>
+          )}
+
         </Form>
       )}
     </Modal>
